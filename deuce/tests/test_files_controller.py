@@ -401,14 +401,14 @@ class TestFilesController(FunctionalTest):
                                     params=params, headers=self._hdrs)
 
             next_batch_url = response.headers.get("X-Next-Batch", '')
-            resp_block_list += list(response.json_body)
-            assert isinstance(response.json_body, list)
+            resp_block_list += response.json_body
+            assert isinstance(response.json_body, dict)
             if not next_batch_url:
                 break
             params['marker'] = \
                 parse_qs(urlparse(next_batch_url).query)['marker']
 
-        self.assertEqual(len(resp_block_list), 1.2 *
+        self.assertEqual(len(resp_block_list), 1.4375 *
              conf.api_configuration.max_returned_num)
 
     def helper_create_blocks(self, num_blocks):

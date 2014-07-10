@@ -1,5 +1,5 @@
 
-# Hoist up into the sqlite namespace
+# Hoist up into the mongo namespace
 
 from deuce.drivers.mongodb import mongodbmetadatadriver
 

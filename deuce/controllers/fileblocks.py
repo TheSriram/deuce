@@ -1,3 +1,5 @@
+import itertools
+from collections import defaultdict
 
 from pecan import conf, expose, request, response
 from pecan.rest import RestController
@@ -43,10 +45,22 @@ class FileBlocksController(RestController):
         retblks = deuce.metadata_driver.create_file_block_generator(
             request.project_id, vault_id, file_id, inmarker, limit + 1)
 
-        resp = list(retblks)
+        resp = defaultdict(list)
 
+        # NOTE(TheSriram): Every record consists of blockid and offset
+        # record[0] -> block id
+        # record[1] -> offset
+
+        for record in retblks:
+            resp[record[0]].append(record[1])
         truncated = len(resp) > 0 and len(resp) == limit + 1
-        outmarker = resp.pop()[1] if truncated else None
+
+        outmarker = None
+        if truncated:
+            # Note(ThSriram): This would find the maximum offset in
+            # the current batch
+            outmarker = max((max(offset)
+                             for offset in itertools.chain(resp.values())))
 
         if outmarker:
             query_args = {'marker': outmarker}
