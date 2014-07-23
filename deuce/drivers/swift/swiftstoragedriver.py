@@ -1,126 +1,136 @@
-
 from pecan import conf
 
 from deuce.drivers.blockstoragedriver import BlockStorageDriver
 
-import os
-import io
-import shutil
-
-import importlib
 import hashlib
 
+import asyncio
+import aiohttp
+
+from deuce.util.event_loop import get_event_loop
+from deuce.util import log
+logger = log.getLogger(__name__)
 from swiftclient.exceptions import ClientException
 
 from six import BytesIO
 
 
-class SwiftStorageDriver(BlockStorageDriver):
-
+# NOTE(TheSriram) : changed to inherit from object for testing purposes
+class SwiftStorageDriver(object):
     def __init__(self, storage_url, auth_token, project_id):
         self._storage_url = storage_url
         self._token = auth_token
         self._project_id = project_id
+        self.headers = {'X-Auth-Token': auth_token}
 
-        self.lib_pack = importlib.import_module(
-            conf.block_storage_driver.swift.swift_module)
-        self.Conn = getattr(self.lib_pack, 'client')
+    @get_event_loop
+    def _request(self, method, url, headers, data = None):
+
+        response = yield from aiohttp.request(method = method, url = url, headers = headers, data = data)
+        return response
+
+    # NOTE(TheSriram) : This will be used for storing blocks, as multiple blocks PUT will need to
+    # share the same event loop. This can be made more elegant
+    def _noloop_request(self, method, url, headers, data = None):
+
+        response = yield from aiohttp.request(method = method, url = url, headers = headers, data = data)
+        return response
 
     # =========== VAULTS ===============================
     def create_vault(self, project_id, vault_id):
-        response = dict()
 
         try:
-            self.Conn.put_container(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id,
-                response_dict=response)
-            return response['status'] == 201
-        except ClientException as e:
-            return False
+            return self._request('PUT', self._storage_url + '/' + vault_id, headers = self.headers)
+        except Exception as ex:
+            logger.error(ex)
+            return None
 
     def vault_exists(self, project_id, vault_id):
         try:
-            ret = self.Conn.head_container(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id)
-            return ret is not None
-        except ClientException as e:
-            return False
+            return self._request('HEAD', self._storage_url + '/' + vault_id, headers = self.headers)
+        except Exception as ex:
+            logger.error(ex)
+            return None
 
     def delete_vault(self, project_id, vault_id):
-        response = dict()
+
         try:
-            self.Conn.delete_container(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id,
-                response_dict=response)
-            return response['status'] >= 200 and response['status'] < 300
-        except ClientException as e:
-            return False
+
+            return self._request('DELETE', self._storage_url + '/' + vault_id, headers = self.headers)
+        except Exception as ex:
+            logger.error(ex)
+            return None
 
     # =========== BLOCKS ===============================
-    def store_block(self, project_id, vault_id, block_id, blockdata):
-        response = dict()
+    @get_event_loop
+    def store_block(self, project_id, vault_id, block_ids, blockdatas):
+        # import ipdb
+        # ipdb.set_trace()
         try:
-            mdhash = hashlib.md5()
-            mdhash.update(blockdata)
-            mdetag = mdhash.hexdigest()
-            ret_etag = self.Conn.put_object(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id,
-                name='blocks/' + str(block_id),
-                contents=blockdata,
-                content_length=len(blockdata),
-                etag=mdetag,
-                response_dict=response)
-            return response['status'] == 201 and ret_etag == mdetag
-        except ClientException as e:
-            return False
+            # NOTE(TheSriram) : Have not tested this yet.
+            if isinstance(blockdatas, list) and isinstance(block_ids,list):
+                tasks = []
+                for block_id, blockdata in zip(block_ids,blockdatas):
+                    # mdhash = hashlib.md5()
+                    # mdhash.update(blockdata)
+                    mdetag = hashlib.md5(blockdata._content).hexdigest()
+                    # mdetag = hashlib.md5()
+                    headers = self.headers
+                    headers.update({'Etag': mdetag, 'Content-Length': str(len(blockdata._content))})
+                    # headers.update({'Content-Length': str(len(blockdata))})
+                    tasks.append(asyncio.Task(self._noloop_request('PUT', self._storage_url +'/'+vault_id+'/blocks_' + str(block_id), headers=headers,data=blockdata._content)))
+                total_responses = yield from asyncio.gather(*tasks)
+                return total_responses
+
+
+            else:
+                mdhash = hashlib.md5()
+                mdhash.update(blockdatas._content)
+                mdetag = mdhash.hexdigest()
+                headers = self.headers
+                headers.update({'Etag': mdetag, 'Content-Length': str(len(blockdatas._content))})
+
+                response = yield from self._noloop_request('PUT', self._storage_url + '/' + vault_id + '/blocks_' + str(block_ids),
+                                                           headers = headers, data = blockdatas._content)
+                return response
+
+
+        except Exception as ex:
+            # logger.error(ex)
+            return None
 
     def block_exists(self, project_id, vault_id, block_id):
         try:
-            ret = self.Conn.head_object(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id,
-                name='blocks/' + str(block_id))
-            return ret is not None
-        except ClientException as e:
-            return False
+
+            response = self._request('HEAD', self._storage_url + '/' + vault_id + '/blocks_' + str(block_id),
+                                     headers = self.headers)
+            return True if response else False
+        except Exception as ex:
+            logger.error(ex)
+            return None
 
     def delete_block(self, project_id, vault_id, block_id):
-        response = dict()
         try:
-            self.Conn.delete_object(
-                url=self._storage_url,
-                token=self._token,
-                container=vault_id,
-                name='blocks/' + str(block_id),
-                response_dict=response)
-            return response['status'] >= 200 and response['status'] < 300
-        except ClientException as e:
-            return False
 
+            return self._request('DELETE', self._storage_url + '/' + vault_id + '/blocks_' + str(block_id),
+                                 headers = self.headers)
+
+        except Exception as ex:
+            logger.error(ex)
+            return None
+
+
+    @get_event_loop
     def get_block_obj(self, project_id, vault_id, block_id):
-        response = dict()
-        buff = BytesIO()
         try:
-            ret_hdr, ret_obj_body = \
-                self.Conn.get_object(
-                    url=self._storage_url,
-                    token=self._token,
-                    container=vault_id,
-                    name='blocks/' + str(block_id),
-                    response_dict=response)
-            buff.write(ret_obj_body)
-            buff.seek(0)
-            return buff
-        except ClientException as e:
+            response = yield from aiohttp.request('GET',
+                                                  self._storage_url + '/' + vault_id + '/blocks_' + str(block_id),
+                                                  headers = self.headers)
+            block = yield from response.content.read()
+
+            return block
+        except Exception as ex:
+            logger.error(ex)
             return None
 
     def create_blocks_generator(self, project_id, vault_id, block_gen):
@@ -128,4 +138,4 @@ class SwiftStorageDriver(BlockStorageDriver):
         ready to read. These objects will get closed
         individually."""
         return (self.get_block_obj(project_id, vault_id, block_id)
-            for block_id in block_gen)
+                for block_id in block_gen)

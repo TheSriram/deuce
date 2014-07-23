@@ -1,3 +1,4 @@
+aiohttp
 pecan<=0.5.0
 pymongo
 six
