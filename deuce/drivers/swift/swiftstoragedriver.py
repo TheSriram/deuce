@@ -75,7 +75,7 @@ class SwiftStorageDriver(object):
                     # mdhash.update(blockdata)
                     mdetag = hashlib.md5(blockdata._content).hexdigest()
                     # mdetag = hashlib.md5()
-                    headers = self.headers
+                    headers = self.headers.copy()
                     headers.update({'Etag': mdetag, 'Content-Length': str(len(blockdata._content))})
                     # headers.update({'Content-Length': str(len(blockdata))})
                     tasks.append(asyncio.Task(self._noloop_request('PUT', self._storage_url +'/'+vault_id+'/blocks_' + str(block_id), headers=headers,data=blockdata._content)))
@@ -87,7 +87,7 @@ class SwiftStorageDriver(object):
                 mdhash = hashlib.md5()
                 mdhash.update(blockdatas._content)
                 mdetag = mdhash.hexdigest()
-                headers = self.headers
+                headers = self.headers.copy()
                 headers.update({'Etag': mdetag, 'Content-Length': str(len(blockdatas._content))})
 
                 response = yield from self._noloop_request('PUT', self._storage_url + '/' + vault_id + '/blocks_' + str(block_ids),
