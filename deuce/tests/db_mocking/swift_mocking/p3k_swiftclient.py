@@ -3,7 +3,9 @@
 import os
 import io
 import shutil
+import asyncio
 from swiftclient.exceptions import ClientException
+from deuce.util.event_loop import get_event_loop
 import hashlib
 
 container_path = '/tmp/swift_mocking'
@@ -15,17 +17,27 @@ def _get_vault_path(vault_id):
 
 def _get_block_path(vault_id, block_id):
     vault_path = _get_vault_path(vault_id)
-    return os.path.join(vault_path, str(block_id))
+    return os.path.join(vault_path,'blocks', str(block_id))
 
 
 # Create Vault
+# @get_event_loop
+
+# @get_event_loop
+# def put_container():
+# @get_event_loop
+# @asyncio.coroutine
 def put_container(url,
             token,
             container,
             response_dict):
     # from nose.tools import set_trace
     # set_trace()
-    path = _get_vault_path(container)
+    # from nose.tools import set_trace
+    # set_trace()
+    # import ipdb
+    # ipdb.set_trace()
+    path =  _get_vault_path(container)
     if not os.path.exists(path):
         shutil.os.makedirs(path)
         block_path = os.path.join(path, 'blocks')
@@ -39,17 +51,25 @@ def put_container(url,
 
 
 # Check Vault
+# @get_event_loop
+# @asyncio.coroutine
 def head_container(url,
             token,
-            container):
+            container,response_dict):
     path = _get_vault_path(container)
     if os.path.exists(path):
+        response_dict['status']=204
         return 'mocking_ret'
+
     else:
+        response_dict['status']=404
         return None
 
 
+
 # Delete Vault
+# @get_event_loop
+# @asyncio.coroutine
 def delete_container(url,
             token,
             container,
@@ -60,8 +80,12 @@ def delete_container(url,
 
     path = _get_vault_path(container)
     blockpath = os.path.join(path, 'blocks')
+    # from nose.tools import set_trace
+    # set_trace()
     if os.path.exists(path) or os.path.exists(blockpath):
-        if os.listdir(path) == [] or os.listdir(blockpath) == []:
+        # from nose.tools import set_trace
+        # set_trace()
+        if os.listdir(blockpath) == []:
             shutil.rmtree(path)
             response_dict['status'] = 204
         else:
@@ -74,6 +98,8 @@ def delete_container(url,
 
 
 # Store Block
+# @get_event_loop
+# @asyncio.coroutine
 def put_object(url,
             token,
             container,
@@ -83,10 +109,10 @@ def put_object(url,
             response_dict,
             etag=None):
 
-    blocks_path = os.path.join(_get_vault_path(container), 'blocks')
+    blocks_path =  os.path.join(_get_vault_path(container), 'blocks')
     if not os.path.exists(blocks_path):
         response_dict['status'] = 404
-        return
+        return None
 
     path = _get_block_path(container, name)
 
@@ -100,23 +126,35 @@ def put_object(url,
 
 
 # Check Block
+# @get_event_loop
+# @asyncio.coroutine
 def head_object(url,
             token,
             container,
-            name):
+            name,response_dict):
 
     path = _get_block_path(container, name)
     if not os.path.exists(path):
+        response_dict['status']=404
         return None
+    response_dict['status']=200
     return 'mocking_ret'
 
 
 # Delete Block
+# @get_event_loop
+# @asyncio.coroutine
 def delete_object(url,
             token,
             container,
             name,
             response_dict):
+    # import ipdb
+    # ipdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
+    # from nose.tools import set_trace
+    # set_trace()
     path = _get_block_path(container, name)
     if os.path.exists(path):
         os.remove(path)
@@ -126,11 +164,15 @@ def delete_object(url,
 
 
 # Get Block
+# @get_event_loop
+# @asyncio.coroutine
 def get_object(url,
             token,
             container,
             name,
             response_dict):
+    # import ipdb
+    # ipdb.set_trace()
     path = _get_block_path(container, name)
 
     if not os.path.exists(path):
@@ -140,5 +182,11 @@ def get_object(url,
     buff = ""
     with open(path, 'rb') as infile:
         buff = infile.read()
-
+    response_dict['status'] = 200
     return dict(), buff
+
+
+#
+# import pymongo
+# import sys
+# connection = pymongo.MongoClient(host=sys.argv[1], port=27017)

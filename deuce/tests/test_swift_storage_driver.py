@@ -13,7 +13,6 @@ from pecan import conf
 
 import sys
 
-
 # TODO: Make this test generic -- it should not konw
 # which particular driver it is testing.
 
@@ -60,6 +59,7 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
         return SwiftStorageDriver(self.storage_url,
             self.token, self.project_id)
 
+
     def test_ancestry(self):
 
         driver = SwiftStorageDriver(self.storage_url,
@@ -77,9 +77,11 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
         blockid = 'notmatter'
         driver.create_vault(projectid, vaultid)
         driver.vault_exists(projectid, vaultid)
-        driver.delete_vault(projectid, vaultid)
+
         driver.store_block(projectid, vaultid, blockid,
-            str('').encode('utf-8'))
+            str('test').encode('utf-8'))
         driver.block_exists(projectid, vaultid, blockid)
-        driver.delete_block(projectid, vaultid, blockid)
         driver.get_block_obj(projectid, vaultid, blockid)
+        driver.delete_block(projectid, vaultid, blockid)
+        # assert None in driver.get_block_obj(projectid, vaultid, blockid)
+        driver.delete_vault(projectid, vaultid)

@@ -72,7 +72,7 @@ block_storage_driver = {
     },
     'swift': {
         'driver': 'deuce.drivers.swift.SwiftStorageDriver',
-        'swift_module': 'swiftclient',
+        'swift_module': 'deuce.util.p3kswiftclient',
 
         'auth_url': 'YOUR AUTH URL',
         # For example,
