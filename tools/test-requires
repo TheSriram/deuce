@@ -1,5 +1,6 @@
 coverage
 nose
+nose-exclude
 testtools
 testfixtures
 setuptools>=1.1.6

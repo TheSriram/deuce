@@ -17,7 +17,7 @@ from six import BytesIO
 
 
 # NOTE(TheSriram) : changed to inherit from object for testing purposes
-class SwiftStorageDriver(object):
+class SwiftStorageDriver(BlockStorageDriver):
     def __init__(self, storage_url, auth_token, project_id):
         self._storage_url = storage_url
         self._token = auth_token
