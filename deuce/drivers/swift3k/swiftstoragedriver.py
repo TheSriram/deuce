@@ -25,7 +25,7 @@ class SwiftStorageDriver(BlockStorageDriver):
         self.headers = {'X-Auth-Token': auth_token}
         # import ipdb
         # ipdb.set_trace()
-        self.lib_pack = importlib.import_module("deuce.tests.db_mocking.swift_mocking")
+        self.lib_pack = importlib.import_module(conf.block_storage_driver.swift.swift_module)
         self.Conn = getattr(self.lib_pack, 'p3k_swiftclient')
 
     # @get_event_loop
