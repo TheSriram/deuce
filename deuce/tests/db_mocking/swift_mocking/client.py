@@ -34,14 +34,14 @@ def _get_vault_path(vault_id):
 
 def _get_block_path(vault_id, block_id):
     vault_path = _get_vault_path(vault_id)
-    return os.path.join(vault_path, str(block_id))
+    return os.path.join(vault_path, 'blocks', str(block_id))
 
 
 # Create Vault
 def put_container(url,
-            token,
-            container,
-            response_dict):
+                  token,
+                  container,
+                  response_dict):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -59,8 +59,8 @@ def put_container(url,
 
 # Check Vault
 def head_container(url,
-            token,
-            container):
+                   token,
+                   container):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -73,9 +73,9 @@ def head_container(url,
 
 # Delete Vault
 def delete_container(url,
-            token,
-            container,
-            response_dict):
+                     token,
+                     container,
+                     response_dict):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -134,13 +134,13 @@ def delete_container(url,
 
 # Store Block
 def put_object(url,
-            token,
-            container,
-            name,
-            contents,
-            content_length,
-            response_dict,
-            etag=None):
+               token,
+               container,
+               name,
+               contents,
+               content_length,
+               response_dict,
+               etag=None):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -161,9 +161,9 @@ def put_object(url,
 
 # Check Block
 def head_object(url,
-            token,
-            container,
-            name):
+                token,
+                container,
+                name):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -175,10 +175,10 @@ def head_object(url,
 
 # Delete Block
 def delete_object(url,
-            token,
-            container,
-            name,
-            response_dict):
+                  token,
+                  container,
+                  name,
+                  response_dict):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -192,10 +192,10 @@ def delete_object(url,
 
 # Get Block
 def get_object(url,
-            token,
-            container,
-            name,
-            response_dict):
+               token,
+               container,
+               name,
+               response_dict):
     if mock_drop_connection_status:
         raise ClientException('mocking network drop')
 
@@ -212,9 +212,9 @@ def get_object(url,
 
 
 def get_keystoneclient_2_0(auth_url,
-            user,
-            key,
-            os_options):
+                           user,
+                           key,
+                           os_options):
     if user == 'failing_auth_hook':
         raise ClientException('mocking auth failure')
     return 'mocking_project_id', 'mocking_project_token'

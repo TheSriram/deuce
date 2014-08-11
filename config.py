@@ -80,9 +80,19 @@ block_storage_driver = {
     'options': {
         'path': '/tmp/block_storage'
     },
-    'swift': {
-        'driver': 'deuce.drivers.swift.SwiftStorageDriver',
+    'swift2k': {
+        'driver': 'deuce.drivers.swift2k.SwiftStorageDriver',
         'swift_module': 'swiftclient',
+        'is_mocking': False,
+        'auth_url': 'Auth Url',
+        'storage_url': 'Storage Url',
+        # Example:
+        # 'auth_url': 'https://identity.api.rackspacecloud.com/v2.0/'
+    },
+    'swift3k': {
+        'driver': 'deuce.drivers.swift3k.SwiftStorageDriver',
+        'swift_module': 'deuce.util',
+        'is_mocking': False,
         'auth_url': 'Auth Url',
         'storage_url': 'Storage Url'
         # Example:

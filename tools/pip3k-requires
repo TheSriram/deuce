@@ -1,7 +1,7 @@
-gevent
+aiohttp
+asyncio
 pecan
 pymongo
 six
 python-keystoneclient
 python-swiftclient
-python-logstash
