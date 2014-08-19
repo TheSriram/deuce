@@ -124,6 +124,40 @@ class DiskStorageDriverTest(FunctionalTest):
 
         assert driver.delete_vault(vault_id)
 
+    def test_multi_block_crud(self):
+        storage_url, token = self.get_Auth_Token()
+
+        driver = self.create_driver()
+
+        block_size = 3000
+        vault_id = 'multi_block_crud_vault_test'
+        projectid = 'multi_block_test_project_id'
+
+        driver.create_vault(vault_id)
+        block_datas = [MockFile(block_size) for _ in range(3)]
+        block_ids = [block_data.sha1() for block_data in block_datas]
+        driver.store_async_block(vault_id, block_ids, [
+            block_data.read() for block_data in block_datas])
+        for block_id, block_data in zip(block_ids, block_datas):
+            assert driver.block_exists(vault_id, block_id)
+
+            # Read back the block data and compare
+            file_obj = driver.get_block_obj(vault_id, block_id)
+
+            returned_data = file_obj.read()
+
+            # Returned data should be exatly the same
+
+            assert len(returned_data) == block_size
+            assert returned_data == block_data._content
+
+            driver.delete_block(vault_id, block_id)
+
+            assert not driver.block_exists(vault_id, block_id)
+
+            assert None == driver.get_block_obj(vault_id, 'invalid_block_id')
+        assert driver.delete_vault(vault_id)
+
     def test_block_generator(self):
         driver = self.create_driver()
 

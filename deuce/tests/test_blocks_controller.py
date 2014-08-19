@@ -1,5 +1,8 @@
 from pecan import conf
 import os
+import msgpack
+import ddt
+import uuid
 import hashlib
 from random import randrange
 import six
@@ -10,22 +13,27 @@ from deuce.tests import FunctionalTest
 import json
 
 
+@ddt.ddt
 class TestBlocksController(FunctionalTest):
 
     def setUp(self):
         super(TestBlocksController, self).setUp()
 
         # Create a vault for us to work with
+
         vault_name = 'blocks_vault_test'
         self._vault_path = '/v1.0/vaults/{0}'.format(vault_name)
+
+        vault_name = 'blocks_vault_test' + str(uuid.uuid4())
+
         self._blocks_path = '{0}/blocks'.format(self._vault_path)
 
-        self._hdrs = {"x-project-id": 'testblockctrl',
-            "x-auth-token": '',
-            "x-storage-url": ''}
+        self._hdrs = {"x-project-id": 'testblockctrl' + str(uuid.uuid4()),
+                      "x-auth-token": '',
+                      "x-storage-url": ''}
 
         response = self.app.put(self._vault_path,
-            headers=self._hdrs)
+                                headers=self._hdrs)
 
         self.block_list = []
         self.total_block_num = 0
@@ -69,7 +77,7 @@ class TestBlocksController(FunctionalTest):
 
         self.assertEqual(response.status_int, 404)
 
-    def test_invalid_block_id(self):
+    def test_put_invalid_block_id(self):
         path = self._get_block_path('invalid_block_id')
 
         response = self.app.put(path, headers=self._hdrs,
@@ -86,7 +94,29 @@ class TestBlocksController(FunctionalTest):
         headers.update(self._hdrs)
         data = os.urandom(10)
         response = self.app.put(path, headers=headers,
-            params=data, expect_errors=True)
+                                params=data, expect_errors=True)
+        self.assertEqual(response.status_int, 412)
+
+    def test_post_invalid_block_id(self):
+        path = self._get_block_path(self._blocks_path)
+
+        response = self.app.post(path, headers=self._hdrs,
+                                 expect_errors=True)
+
+        self.assertEqual(response.status_int, 400)
+
+        # Post several blocks with the invalid blockid/hash.
+        headers = {
+            "Content-Type": "application/msgpack",
+        }
+        data = [os.urandom(10)]
+        block_list = [hashlib.sha1(b'mock').hexdigest()]
+        headers.update(self._hdrs)
+        contents = dict(zip(block_list, data))
+
+        request_body = msgpack.packb(contents)
+        response = self.app.post(self._blocks_path, headers=headers,
+                                 params=request_body, expect_errors=True)
         self.assertEqual(response.status_int, 412)
 
     def test_with_bad_marker_and_limit(self):
@@ -126,7 +156,8 @@ class TestBlocksController(FunctionalTest):
 
         self.assertEqual(resp.status_code, 404)
 
-    def test_put_and_list(self):
+    @ddt.data(True, False)
+    def test_put_and_list(self, async_status):
 
         # Test None block_id
         path = '{0}/'.format(self._blocks_path)
@@ -141,7 +172,8 @@ class TestBlocksController(FunctionalTest):
         self.assertEqual(response.status_code, 400)
 
         # Create 5 blocks
-        block_list = self.helper_create_blocks(num_blocks=5)
+        block_list = self.helper_create_blocks(num_blocks=5,
+                                               async=async_status)
         self.total_block_num = 5
         self.block_list += block_list
 
@@ -188,10 +220,9 @@ class TestBlocksController(FunctionalTest):
 
             self.assertEqual(response.status_int, 404)
 
-    def helper_create_blocks(self, num_blocks):
+    def helper_create_blocks(self, num_blocks, async=False):
         min_size = 1
         max_size = 2000
-
         block_sizes = [randrange(min_size, max_size) for x in
                        range(0, num_blocks)]
 
@@ -199,23 +230,33 @@ class TestBlocksController(FunctionalTest):
         block_list = [self._calc_sha1(d) for d in data]
 
         block_data = zip(block_sizes, data, block_list)
-
-        # Put each one of the generated blocks on the
-        # size
-        for size, data, sha1 in block_data:
-            path = self._get_block_path(sha1)
-
-            # NOTE: Very important to set the content-type
-            # header. Otherwise pecan tries to do a UTF-8 test.
+        if async:
+            contents = dict(zip(block_list, data))
+            request_body = msgpack.packb(contents)
             headers = {
-                "Content-Type": "application/octet-stream",
-                "Content-Length": str(size),
+                "Content-Type": "application/msgpack"
             }
-
             headers.update(self._hdrs)
+            response = self.app.post(self._blocks_path, headers=headers,
+                                     params=request_body)
+        else:
 
-            response = self.app.put(path, headers=headers,
-                                    params=data)
+            # Put each one of the generated blocks on the
+            # size
+            for size, data, sha1 in block_data:
+                path = self._get_block_path(sha1)
+
+                # NOTE: Very important to set the content-type
+                # header. Otherwise pecan tries to do a UTF-8 test.
+                headers = {
+                    "Content-Type": "application/binary",
+                    "Content-Length": str(size),
+                }
+
+                headers.update(self._hdrs)
+
+                response = self.app.put(path, headers=headers,
+                                        params=data)
 
         return block_list
 

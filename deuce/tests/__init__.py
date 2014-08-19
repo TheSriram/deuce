@@ -62,10 +62,16 @@ def setUp():
             'deuce.tests.mock_cassandra'
 
     # Swift
-    LOG.info('Swift - Mocking: {0:}'.format(
-        conf_dict['block_storage_driver']['swift']['testing']['is_mocking']))
-    if conf_dict['block_storage_driver']['swift']['testing']['is_mocking']:
-        conf_dict['block_storage_driver']['swift']['swift_module'] = \
+    LOG.info('Swift2k - Mocking: {0:}'.format(
+        conf_dict['block_storage_driver']['swift2k']['testing']['is_mocking']))
+    if conf_dict['block_storage_driver']['swift2k']['testing']['is_mocking']:
+        conf_dict['block_storage_driver']['swift2k']['swift_module'] = \
+            'deuce.tests.db_mocking.swift_mocking'
+
+    LOG.info('Swift3k - Mocking: {0:}'.format(
+        conf_dict['block_storage_driver']['swift3k']['testing']['is_mocking']))
+    if conf_dict['block_storage_driver']['swift3k']['testing']['is_mocking']:
+        conf_dict['block_storage_driver']['swift3k']['swift_module'] = \
             'deuce.tests.db_mocking.swift_mocking'
 
     # To add for-test-only items.
@@ -93,10 +99,12 @@ def tearDown():
 
 
 class FunctionalTest(TestCase):
+
     """
     Used for functional tests where you need to test your
     literal application and its integration with the framework.
     """
+
     def setUp(self):
         import deuce
         deuce.context = DummyContextObject

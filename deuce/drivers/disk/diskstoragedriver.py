@@ -96,6 +96,17 @@ class DiskStorageDriver(BlockStorageDriver):
 
         return True
 
+    def store_async_block(self, vault_id, block_ids, blockdatas):
+        results = []
+        for block_id, blockdata in zip(block_ids, blockdatas):
+            path = self._get_block_path(vault_id, block_id)
+
+            with open(path, 'wb') as outfile:
+                outfile.write(blockdata)
+                results.append(True)
+
+        return results
+
     def block_exists(self, vault_id, block_id):
         path = self._get_block_path(vault_id, block_id)
         return os.path.exists(path)

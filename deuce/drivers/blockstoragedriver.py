@@ -70,6 +70,16 @@ class BlockStorageDriver(object):
         raise NotImplementedError
 
     @abstractmethod
+    def store_async_block(self, vault_id, block_ids, block_datas):
+        """Stores blocks asynchronusly into the specified vault
+
+        :param vault_id: The IDs of the vault
+        :param block_ids: The IDs of the blocks
+        :param block_datass: The content of the blocks
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def block_exists(self, vault_id, block_id):
         """Determines if the specified block exists in the
         vault."""

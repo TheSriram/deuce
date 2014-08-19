@@ -1,3 +1,4 @@
+import msgpack
 from deuce.util import log as logging
 
 from pecan import conf, expose, request, response, abort
@@ -99,5 +100,23 @@ class BlocksController(RestController):
                 block_id, request.body, request.headers['content-length'])
             response.status_code = (201 if retval is True else 500)
             logger.info('block [{0}] added'.format(block_id))
+        except ValueError as e:
+            response.status_code = 412
+
+    @expose()
+    @validate(vault_id=VaultGetRule, block_id=BlockPutRuleNoneOk)
+    def post(self, vault_id, block_id=None):
+
+        vault = Vault.get(vault_id)
+        unpacked = msgpack.unpackb(request.body_file_seekable.getvalue())
+
+        block_ids = list(unpacked.keys())
+        block_datas = list(unpacked.values())
+        try:
+            retval = vault.put_async_block(
+                block_ids,
+                block_datas)
+            response.status_code = 201 if all(retval) is True else 500
+            logger.info('blocks [{0}] added'.format(block_ids))
         except ValueError as e:
             response.status_code = 412

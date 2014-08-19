@@ -6,7 +6,9 @@ from deuce.drivers.blockstoragedriver import BlockStorageDriver
 import os
 import io
 import shutil
-
+from gevent import monkey
+monkey.patch_all()
+import gevent
 import importlib
 import hashlib
 
@@ -17,11 +19,11 @@ from six import BytesIO
 import deuce
 
 
-class SwiftStorageDriver(BlockStorageDriver):
+class PY2_SwiftStorageDriver(BlockStorageDriver):
 
     def __init__(self):
         self.lib_pack = importlib.import_module(
-            conf.block_storage_driver.swift.swift_module)
+            conf.block_storage_driver.swift2k.swift_module)
         self.Conn = getattr(self.lib_pack, 'client')
 
     # =========== VAULTS ===============================
@@ -137,6 +139,34 @@ class SwiftStorageDriver(BlockStorageDriver):
         except ClientException as e:
             return False
 
+    def store_async_block(self, vault_id, block_ids, block_datas):
+        response = dict()
+        mdetags = []
+        for block_id, block_data in zip(block_ids, block_datas):
+            mdhash = hashlib.md5()
+            mdhash.update(block_data)
+            mdetag = mdhash.hexdigest()
+            mdetags.append(mdetag)
+        green_threads = [gevent.spawn
+                         (self.Conn.put_object,
+                          url=deuce.context.openstack.swift.storage_url,
+                          token=deuce.context.openstack.auth_token,
+                          container=vault_id,
+                          name='blocks/' + str(block_id),
+                          contents=block_data,
+                          content_length=len(block_data),
+                          etag=mdetag,
+                          response_dict=response)
+                         for block_id, block_data, mdetag in
+                         zip(block_ids, block_datas, mdetags)]
+        gevent.joinall(green_threads)
+        if any([isinstance(green_thread.exception, ClientException)
+                for green_thread in green_threads]):
+            return False
+        else:
+            return response['status'] == 201 and mdetags == [
+                green_thread.value for green_thread in green_threads]
+
     def block_exists(self, vault_id, block_id):
         try:
             ret = self.Conn.head_object(
@@ -198,4 +228,4 @@ class SwiftStorageDriver(BlockStorageDriver):
         ready to read. These objects will get closed
         individually."""
         return (self.get_block_obj(vault_id, block_id)
-            for block_id in block_gen)
+                for block_id in block_gen)

@@ -1,6 +1,12 @@
-
+import six
 from deuce.drivers.blockstoragedriver import BlockStorageDriver
-from deuce.drivers.swift import SwiftStorageDriver
+from pecan import conf
+if six.PY2:
+    from deuce.drivers.swift2k import SwiftStorageDriver
+
+else:
+    from deuce.drivers.swift3k import SwiftStorageDriver
+
 from deuce.tests.test_disk_storage_driver import DiskStorageDriverTest
 
 # Users need take care of authenticate themselves and
@@ -9,19 +15,17 @@ from deuce.tests.test_disk_storage_driver import DiskStorageDriverTest
 from swiftclient import client as Conn
 from swiftclient.exceptions import ClientException
 
-from pecan import conf
 
 import sys
 import os
 import json
-
 
 # TODO: Make this test generic -- it should not konw
 # which particular driver it is testing.
 
 
 class SwiftStorageDriverTest(DiskStorageDriverTest):
-
+    # TODO (TheSriram) : Make pecan.conf swift version aware
     def setUp(self):
         super(SwiftStorageDriverTest, self).setUp()
         storage_url, auth_token = self.get_Auth_Token()
@@ -35,16 +39,16 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
     def get_Auth_Token(self):
         self.mocking = False
         try:
-            if conf.block_storage_driver.swift.testing.is_mocking:
+            if conf.block_storage_driver.swift2k.testing.is_mocking:
                 self.mocking = True
         except:
             self.mocking = False
 
         if not self.mocking:
-            auth_url = str(conf.block_storage_driver.swift.testing.auth_url)
+            auth_url = str(conf.block_storage_driver.swift2k.testing.auth_url)
 
-            username = str(conf.block_storage_driver.swift.testing.username)
-            password = str(conf.block_storage_driver.swift.testing.password)
+            username = str(conf.block_storage_driver.swift2k.testing.username)
+            password = str(conf.block_storage_driver.swift2k.testing.password)
             try:
                 os_options = dict()
                 storage_url, token = \
@@ -58,11 +62,11 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
 
         else:
             storage_url = \
-                str(conf.block_storage_driver.swift.testing.storage_url)
+                str(conf.block_storage_driver.swift2k.testing.storage_url)
             token = 'mocking_token'
 
         self._hdrs = {"x-project-id": 'testswfitstoragedrv',
-            "x-auth-token": token}
+                      "x-auth-token": token}
         return storage_url, token
 
     def test_basic_construction(self):
@@ -86,15 +90,23 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
 
         vaultid = 'notmatter'
         blockid = 'notmatter'
+        block_ids = ['notmatter1', 'notmatter2']
+        blockdatas = [b'data1', b'data2']
         driver.create_vault(vaultid)
         driver.vault_exists(vaultid)
-        driver.delete_vault(vaultid)
         driver.store_block(vaultid, blockid,
-            str('').encode('utf-8'))
+                           str('').encode('utf-8'))
         driver.block_exists(vaultid, blockid)
-        driver.delete_block(vaultid, blockid)
         driver.get_block_obj(vaultid, blockid)
+        driver.store_async_block(
+            vaultid,
+            block_ids,
+            blockdatas)
+        driver.delete_block(vaultid, blockid)
+        for block_id in block_ids:
+            driver.delete_block(vaultid, block_id)
 
+        driver.delete_vault(vaultid)
         deuce.context.openstack.auth_token = valid_token
 
     def test_network_drops(self):
@@ -103,7 +115,7 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
         """
         self.mocking = False
         try:
-            if conf.block_storage_driver.swift.testing.is_mocking:
+            if conf.block_storage_driver.swift2k.testing.is_mocking:
                 self.mocking = True
         except:
             self.mocking = False
@@ -127,7 +139,12 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
             self.assertFalse(driver.delete_vault(vault_id))
 
             self.assertFalse(driver.store_block(vault_id, block_id,
-                str('').encode('utf-8')))
+                                                str('').encode('utf-8')))
+
+            self.assertFalse(driver.store_async_block(
+                             vault_id,
+                             [block_id],
+                             [str('').encode('utf-8')]))
 
             self.assertFalse(driver.block_exists(vault_id, block_id))
 

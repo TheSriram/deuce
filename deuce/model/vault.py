@@ -7,6 +7,7 @@ from deuce.model.file import File
 import deuce
 import uuid
 import hashlib
+import six
 
 
 class Vault(object):
@@ -57,6 +58,33 @@ class Vault(object):
 
         file_id = deuce.metadata_driver.register_block(
             self.id, block_id, data_len)
+
+        return retval
+
+    def put_async_block(self, block_ids, blockdatas):
+        if six.PY3:  # pragma: no cover
+            block_ids = [block_id.decode() for block_id in block_ids]
+        # Validate the hash of the block data against block_id
+        for block_id, blockdata in zip(block_ids, blockdatas):
+
+            if hashlib.sha1(blockdata).hexdigest() != block_id:
+                raise ValueError('Invalid Hash Value in the block ID')
+
+        retval = deuce.storage_driver.store_async_block(
+            self.id,
+            block_ids,
+            blockdatas)
+
+        # TODO(TheSriram): We must avoid race conditions
+        # One way to accomplish this is to make this an atomic
+        # operation, lets either post all the blocks or post none at
+        # all, a worker process can be spawned off to kill partially uploaded
+        # blocks. For eg: out of 10 blocks, 3 got uploaded.
+        for block_id, blockdata in zip(block_ids, blockdatas):
+            file_id = deuce.metadata_driver.register_block(
+                self.id,
+                block_id,
+                len(blockdata))
 
         return retval
 
