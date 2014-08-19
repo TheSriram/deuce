@@ -16,6 +16,9 @@ def _noloop_request(method, url, headers, data=None):
 def _async_request(method, url, headers, names, contents, etag):
     tasks = []
     for name, content in zip(names, contents):
+        # NOTE(THeSriram) : xyu discovered that we received 422's
+        # from swift if we didn't execute a copy of headers
+        # containing the msd5 of block data
         headers = headers.copy()
         if etag:
             mdhash = hashlib.md5()
@@ -81,7 +84,6 @@ def delete_container(url, token, container, response_dict):
 def put_object(url, token, container, name, contents,
                content_length, etag, response_dict):
     headers = {'X-Auth-Token': token}
-    headers = headers.copy()
     if etag:
         headers.update({'Etag': etag, 'Content-Length': content_length})
     else:
@@ -95,7 +97,6 @@ def put_object(url, token, container, name, contents,
 def put_async_object(
         url, token, container, names, contents, etag, response_dict):
     headers = {'X-Auth-Token': token}
-    headers = headers.copy()
 
     responses = _async_request(
         'PUT',
