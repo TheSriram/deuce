@@ -136,6 +136,12 @@ class TestBlocksController(FunctionalTest):
                                  params=request_body, expect_errors=True)
         self.assertEqual(response.status_int, 400)
 
+        # Post non-message packed request body
+
+        response = self.app.post(self._blocks_path, headers=headers,
+                                 params='non-msgpack', expect_errors=True)
+        self.assertEqual(response.status_int, 400)
+
     def test_with_bad_marker_and_limit(self):
         block_list = self.helper_create_blocks(num_blocks=5)
 
