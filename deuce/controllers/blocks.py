@@ -103,8 +103,8 @@ class BlocksController(RestController):
         except ValueError as e:
             response.status_code = 412
 
-    @expose()
     @validate(vault_id=VaultGetRule, block_id=BlockPostRuleEmpty)
+    @expose()
     def post(self, vault_id, block_id):
 
         vault = Vault.get(vault_id)
