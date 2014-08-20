@@ -104,8 +104,8 @@ class BlocksController(RestController):
             response.status_code = 412
 
     @expose()
-    @validate(vault_id=VaultGetRule, block_id=BlockPutRuleNoneOk)
-    def post(self, vault_id, block_id=None):
+    @validate(vault_id=VaultGetRule, block_id=BlockPostRuleEmpty)
+    def post(self, vault_id, block_id):
 
         vault = Vault.get(vault_id)
         try:

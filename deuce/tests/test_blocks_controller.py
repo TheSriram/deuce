@@ -103,7 +103,7 @@ class TestBlocksController(FunctionalTest):
         response = self.app.post(path, headers=self._hdrs,
                                  expect_errors=True)
 
-        self.assertEqual(response.status_int, 400)
+        self.assertEqual(response.status_int, 404)
 
         # Post several blocks with the invalid blockid/hash.
         headers = {
@@ -137,10 +137,34 @@ class TestBlocksController(FunctionalTest):
         self.assertEqual(response.status_int, 400)
 
         # Post non-message packed request body
-
         response = self.app.post(self._blocks_path, headers=headers,
                                  params='non-msgpack', expect_errors=True)
         self.assertEqual(response.status_int, 400)
+
+    def test_post_invalid_enpoint(self):
+            path = self._get_block_path(self._blocks_path)
+
+            headers = {
+                "Content-Type": "application/msgpack",
+            }
+            headers.update(self._hdrs)
+            data = [os.urandom(x) for x in range(3)]
+            block_list = [self._calc_sha1(d) for d in data]
+
+            contents = dict(zip(block_list, data))
+
+            request_body = msgpack.packb(contents)
+            # invalid endpoint : POST v1.0/vaults/{vault_name}/blocks/myblock
+            response = self.app.post(self._blocks_path + '/myblock',
+                                     headers=headers,
+                                     params=request_body, expect_errors=True)
+            self.assertEqual(response.status_int, 404)
+            # invalid endpoint : POST v1.0/vaults/{vault_name}/blocks/myblock
+            # with no request_body
+            response = self.app.post(self._blocks_path + '/myblock',
+                                     headers=headers,
+                                     expect_errors=True)
+            self.assertEqual(response.status_int, 404)
 
     def test_with_bad_marker_and_limit(self):
         block_list = self.helper_create_blocks(num_blocks=5)

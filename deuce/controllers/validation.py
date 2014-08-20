@@ -135,8 +135,13 @@ def validate(**rules):
 def validation_function(func):
     """Decorator for creating a validation function"""
     @wraps(func)
-    def inner(none_ok=False, empty_ok=False):
+    def inner(none_ok=False, empty_ok=False, none_needed=False):
         def wrapper(value):
+            if none_needed and value is None:
+                return
+            if none_needed and value is not None:
+                msg = 'Value not permitted'
+                raise ValidationFailed(msg)
             if none_ok and value is None:
                 return
 
@@ -202,6 +207,7 @@ BlockGetRule = Rule(val_block_id(), lambda: _abort(404))
 FileGetRule = Rule(val_file_id(), lambda: _abort(404))
 FilePostRuleNoneOk = Rule(val_file_id(none_ok=True), lambda: _abort(400))
 BlockPutRuleNoneOk = Rule(val_block_id(none_ok=True), lambda: _abort(400))
+BlockPostRuleEmpty = Rule(val_block_id(none_needed=True), lambda: _abort(404))
 
 # query string rules
 FileMarkerRule = Rule(val_file_id(none_ok=True), lambda: _abort(404),
