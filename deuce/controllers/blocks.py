@@ -109,14 +109,18 @@ class BlocksController(RestController):
 
         vault = Vault.get(vault_id)
         unpacked = msgpack.unpackb(request.body_file_seekable.getvalue())
-
-        block_ids = list(unpacked.keys())
-        block_datas = list(unpacked.values())
-        try:
-            retval = vault.put_async_block(
-                block_ids,
-                block_datas)
-            response.status_code = 201 if all(retval) is True else 500
-            logger.info('blocks [{0}] added'.format(block_ids))
-        except ValueError as e:
-            response.status_code = 412
+        if not isinstance(unpacked, dict):
+            abort(400, headers={"Transaction-ID":
+                  deuce.context.transaction.request_id},
+                  comment="Request Body not well formed")
+        else:
+            block_ids = list(unpacked.keys())
+            block_datas = list(unpacked.values())
+            try:
+                retval = vault.put_async_block(
+                    block_ids,
+                    block_datas)
+                response.status_code = 201 if all(retval) is True else 500
+                logger.info('blocks [{0}] added'.format(block_ids))
+            except ValueError as e:
+                response.status_code = 412

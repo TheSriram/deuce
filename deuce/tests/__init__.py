@@ -62,15 +62,11 @@ def setUp():
             'deuce.tests.mock_cassandra'
 
     # Swift
-    LOG.info('Swift2k - Mocking: {0:}'.format(
-        conf_dict['block_storage_driver']['swift2k']['testing']['is_mocking']))
-    if conf_dict['block_storage_driver']['swift2k']['testing']['is_mocking']:
+    LOG.info('Swift - Mocking: {0:}'.format(
+        conf_dict['block_storage_driver']['swift_testing']['is_mocking']))
+    if conf_dict['block_storage_driver']['swift_testing']['is_mocking']:
         conf_dict['block_storage_driver']['swift2k']['swift_module'] = \
             'deuce.tests.db_mocking.swift_mocking'
-
-    LOG.info('Swift3k - Mocking: {0:}'.format(
-        conf_dict['block_storage_driver']['swift3k']['testing']['is_mocking']))
-    if conf_dict['block_storage_driver']['swift3k']['testing']['is_mocking']:
         conf_dict['block_storage_driver']['swift3k']['swift_module'] = \
             'deuce.tests.db_mocking.swift_mocking'
 

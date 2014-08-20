@@ -119,6 +119,23 @@ class TestBlocksController(FunctionalTest):
                                  params=request_body, expect_errors=True)
         self.assertEqual(response.status_int, 412)
 
+    def test_post_invalid_request_body(self):
+        path = self._get_block_path(self._blocks_path)
+
+        # Post several blocks with invalid request body
+        headers = {
+            "Content-Type": "application/msgpack",
+        }
+        data = os.urandom(10)
+        block_list = hashlib.sha1(b'mock').hexdigest()
+        headers.update(self._hdrs)
+        contents = [block_list, data] * 3
+
+        request_body = msgpack.packb(contents)
+        response = self.app.post(self._blocks_path, headers=headers,
+                                 params=request_body, expect_errors=True)
+        self.assertEqual(response.status_int, 400)
+
     def test_with_bad_marker_and_limit(self):
         block_list = self.helper_create_blocks(num_blocks=5)
 
