@@ -109,7 +109,7 @@ class BlocksController(RestController):
 
         vault = Vault.get(vault_id)
         try:
-            unpacked = msgpack.unpackb(request.body_file_seekable.getvalue())
+            unpacked = msgpack.unpackb(request.body_file_seekable.read())
 
             if not isinstance(unpacked, dict):
                 raise TypeError
