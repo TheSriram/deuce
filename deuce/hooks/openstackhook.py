@@ -18,6 +18,7 @@ class OpenStackHook(PecanHook):
             pass
 
         deuce.context.openstack = OpenStackObject()
+        deuce.context.openstack.swift = OpenStackObject()
 
         # Enforce the existence of the x-auth-token header and assign
         # the value to the deuce context's open stack context
@@ -27,9 +28,12 @@ class OpenStackHook(PecanHook):
             # or WSGI middleware
             deuce.context.openstack.auth_token = \
                 state.request.headers['x-auth-token']
+            deuce.context.openstack.swift.storage_url = \
+                state.request.headers['x-storage-url']
         except KeyError:
             # Invalid request
-            abort(401, comment="Missing Header : X-Auth-Token",
+            abort(401, comment="Possible Missing Headers : "
+                               "X-Auth-Token and X-Storage-URL",
                 headers={
                     'Transaction-ID': deuce.context.transaction.request_id
                 })

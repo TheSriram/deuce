@@ -10,7 +10,9 @@ class TestLogging(FunctionalTest):
     def setUp(self):
         super(TestLogging, self).setUp()
 
-        self._hdrs = {"X-Project-ID": "sample_project_id", "x-auth-token": ""}
+        self._hdrs = {"X-Project-ID": "sample_project_id",
+                      "x-auth-token": "",
+                      "x-storage-url": ""}
 
     def _testuuid(self, request_id):
         try:
