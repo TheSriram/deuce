@@ -14,7 +14,10 @@ else:
 
     extras_require = {
         'python_version>="3.3"': ['asyncio', 'aiohttp'],
-        'python_version=="2.7"': ['gevent']
+        'python_version=="2.7"': ['gevent'],
+        '3.4': ['asyncio', 'aiohttp'],
+        '3.3': ['asyncio','aiohttp'],
+        '2.7': ['gevent']
     }
     setup(
         name='deuce',
