@@ -27,3 +27,11 @@ class Test_Map_Field(TestCase):
                   field_name='aliens')
 
         self.assertEqual(0, self.changed_dict['aliens'])
+
+    def test_map_valueerror(self):
+        self.base_dict['food'] = 'dont eat me'
+        map_field(float, from_dict=self.base_dict, to_dict=self.changed_dict,
+                  header_name='food',
+                  field_name='aliens')
+
+        self.assertEqual(0.0, self.changed_dict['aliens'])
