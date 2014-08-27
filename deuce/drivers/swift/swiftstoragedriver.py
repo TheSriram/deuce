@@ -1,5 +1,5 @@
 from pecan import conf
-
+from deuce.util.map_field import map_field
 from deuce.drivers.blockstoragedriver import BlockStorageDriver
 
 import hashlib
@@ -89,7 +89,10 @@ class SwiftStorageDriver(BlockStorageDriver):
 
             for k, v in mapper.items():
                 try:
-                    statistics[k] = container_metadata[v]
+                    map_field(int, from_dict=container_metadata,
+                              to_dict=statistics,
+                              field_name=k,
+                              header_name=v)
 
                 except KeyError:  # pragma: no cover
                     statistics[k] = 0
