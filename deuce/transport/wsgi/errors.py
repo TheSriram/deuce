@@ -6,7 +6,7 @@ class HTTPInternalServerError(falcon.HTTPInternalServerError):
 
     """Wraps falcon.HTTPInternalServerError"""
 
-    TITLE = u'Service temporarily unavailable'
+    TITLE = u'Internal Server Error'
 
     def __init__(self, description='Something went wrong', **kwargs):
         super(HTTPInternalServerError, self).__init__(

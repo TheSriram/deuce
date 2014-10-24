@@ -663,13 +663,11 @@ class TestAssignBlockContentLengthLimitRules(TestRulesBase):
         max_contentlength_assignblock * 0.5,
         max_contentlength_assignblock * 0.99,
         max_contentlength_assignblock
-
     ]
 
     negative_cases = [
         max_contentlength_assignblock * 1.1,
         max_contentlength_assignblock * 1.2
-
     ]
 
     @validate(req=v.AssignBlockContentLengthRule)
@@ -703,13 +701,11 @@ class TestPostBlockContentLengthLimitRules(TestRulesBase):
         max_contentlength_blockpost * 0.5,
         max_contentlength_blockpost * 0.99,
         max_contentlength_blockpost
-
     ]
 
     negative_cases = [
         max_contentlength_blockpost * 1.1,
         max_contentlength_blockpost * 1.2
-
     ]
 
     @validate(req=v.BlockPostContentLengthRule)
