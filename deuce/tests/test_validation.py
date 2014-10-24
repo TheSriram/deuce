@@ -6,6 +6,7 @@ from falcon import request
 from stoplight import validate
 from stoplight.exceptions import ValidationFailed
 
+from deuce import conf
 from deuce.transport import validation as v
 from deuce.transport.wsgi import errors
 
@@ -26,7 +27,7 @@ class InvalidSeparatorError(Exception):
 class TestRulesBase(TestCase):
 
     @staticmethod
-    def build_request(params=None, separator='&'):
+    def build_request(params=None, content_length=None, separator='&'):
         """Build a request object to use for testing
 
         :param params: list of tuples containing the name and value pairs
@@ -39,7 +40,8 @@ class TestRulesBase(TestCase):
             'PATH_INFO': '/',
             'SERVER_NAME': 'mock',
             'SERVER_PORT': '8888',
-            'QUERY_STRING': None
+            'QUERY_STRING': None,
+            'HTTP_CONTENT_LENGTH': content_length
         }
 
         if params is not None:
@@ -651,3 +653,83 @@ class TestLimitRules(TestRulesBase):
                                                              limit)])
             with self.assertRaises(errors.HTTPNotFound):
                 self.utilize_request(limit_req, raiseme=True)
+
+
+class TestAssignBlockContentLengthLimitRules(TestRulesBase):
+
+    max_contentlength_assignblock = conf.content_limits.assignblocks
+
+    positive_cases = [
+        max_contentlength_assignblock * 0.5,
+        max_contentlength_assignblock * 0.99,
+        max_contentlength_assignblock
+
+    ]
+
+    negative_cases = [
+        max_contentlength_assignblock * 1.1,
+        max_contentlength_assignblock * 1.2
+
+    ]
+
+    @validate(req=v.AssignBlockContentLengthRule)
+    def utilize_request(self, req):
+        return True
+
+    def test_content_limit_assign_blocks(self):
+        positive_cases, negative_cases = self.cases_with_none_okay()
+        for length in positive_cases:
+            if length is not None:
+                c_length = str(int(length))
+                assignblock_req = \
+                    TestRulesBase.build_request(content_length=c_length)
+            else:
+                assignblock_req = TestRulesBase.build_request()
+            self.assertTrue(self.utilize_request(assignblock_req))
+
+        for length in negative_cases:
+            with self.assertRaises(errors.HTTPRequestEntityTooLarge):
+                c_length = str(int(length))
+                assignblock_req = \
+                    TestRulesBase.build_request(content_length=c_length)
+                self.utilize_request(assignblock_req)
+
+
+class TestPostBlockContentLengthLimitRules(TestRulesBase):
+
+    max_contentlength_blockpost = conf.content_limits.blockpost
+
+    positive_cases = [
+        max_contentlength_blockpost * 0.5,
+        max_contentlength_blockpost * 0.99,
+        max_contentlength_blockpost
+
+    ]
+
+    negative_cases = [
+        max_contentlength_blockpost * 1.1,
+        max_contentlength_blockpost * 1.2
+
+    ]
+
+    @validate(req=v.BlockPostContentLengthRule)
+    def utilize_request(self, req):
+        return True
+
+    def test_content_limit_blocks_post(self):
+        positive_cases, negative_cases = self.cases_with_none_okay()
+        for length in positive_cases:
+            if length is not None:
+                c_length = str(int(length))
+                blockpost_req = \
+                    TestRulesBase.build_request(content_length=c_length)
+            else:
+                blockpost_req = TestRulesBase.build_request()
+            self.assertTrue(self.utilize_request(blockpost_req))
+
+        for length in negative_cases:
+            with self.assertRaises(errors.HTTPRequestEntityTooLarge):
+                c_length = str(int(length))
+                blockpost_req = \
+                    TestRulesBase.build_request(content_length=c_length)
+                self.utilize_request(blockpost_req)

@@ -3,8 +3,8 @@ import re
 import falcon
 from stoplight import Rule, ValidationFailed, validation_function
 
+from deuce import conf
 from deuce.transport.wsgi import errors
-
 
 VAULT_ID_MAX_LEN = 128
 VAULT_ID_REGEX = re.compile('^[a-zA-Z0-9_\-]+$')
@@ -67,10 +67,40 @@ def is_request(value):
         raise ValidationFailed('Input must be a request')
 
 
+@validation_function
+def val_block_post_content_length(value):
+    contentlimit = conf.content_limits.blockpost
+    # NOTE(TheSriram): If request body is empty, content_length
+    # is set to None
+    if not value.content_length:
+        pass
+    elif not value.content_length <= contentlimit:
+        raise ValidationFailed('Request body should be '
+                               'less than {0} '
+                               'bytes'.format(contentlimit))
+
+
+@validation_function
+def val_assign_blocks_content_length(value):
+
+    contentlimit = conf.content_limits.assignblocks
+
+    # NOTE(TheSriram): If request body is empty, content_length
+    # is set to None
+    if not value.content_length:
+        pass
+    elif not value.content_length <= contentlimit:
+        raise ValidationFailed('Request body should be '
+                               'less than {0} '
+                               'bytes'.format(contentlimit))
+
+
 def _abort(status_code):
     abort_errors = {
         400: errors.HTTPBadRequestAPI('Invalid Request'),
         404: errors.HTTPNotFound,
+        413: errors.HTTPRequestEntityTooLarge('Content-Length '
+                                              'larger than limit'),
         500: errors.HTTPInternalServerError
     }
     raise abort_errors[status_code]
@@ -106,6 +136,13 @@ class QueryStringRule(Rule):
     def __init__(self, querystring_name, vfunc, errfunc):
         getter = lambda req: req.get_param(querystring_name)
         Rule.__init__(self, vfunc=vfunc, getter=getter, errfunc=errfunc)
+
+# request content-length rules
+
+BlockPostContentLengthRule = Rule(val_block_post_content_length(),
+                                  lambda: _abort(413))
+AssignBlockContentLengthRule = Rule(val_assign_blocks_content_length(),
+                                  lambda: _abort(413))
 
 # parameter rules
 VaultGetRule = Rule(val_vault_id(), lambda: _abort(404))

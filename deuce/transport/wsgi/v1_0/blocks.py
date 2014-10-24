@@ -131,7 +131,7 @@ class ItemResource(object):
 
         except Exception as ex:  # pragma: no cover
             logger.error(ex)
-            raise errors.HTTPServiceUnavailable
+            raise errors.HTTPInternalServerError
 
         else:
 
@@ -147,7 +147,7 @@ class ItemResource(object):
 
 class CollectionResource(object):
 
-    @validate(vault_id=VaultGetRule)
+    @validate(req=BlockPostContentLengthRule, vault_id=VaultGetRule)
     def on_post(self, req, resp, vault_id):
         vault = Vault.get(vault_id)
         try:

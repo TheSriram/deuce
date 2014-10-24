@@ -55,7 +55,8 @@ class CollectionResource(object):
 
         resp.body = json.dumps(responses)
 
-    @validate(vault_id=VaultPutRule, file_id=FilePostRuleNoneOk)
+    @validate(req=AssignBlockContentLengthRule, vault_id=VaultPutRule,
+              file_id=FilePostRuleNoneOk)
     def on_post(self, req, resp, vault_id, file_id):
         """This endpoint Assigns blocks to files
         """

@@ -4,11 +4,11 @@ import falcon.status_codes as status
 
 class HTTPInternalServerError(falcon.HTTPInternalServerError):
 
-    """Wraps falcon.HTTPServiceUnavailable"""
+    """Wraps falcon.HTTPInternalServerError"""
 
     TITLE = u'Service temporarily unavailable'
 
-    def __init__(self, description, **kwargs):
+    def __init__(self, description='Something went wrong', **kwargs):
         super(HTTPInternalServerError, self).__init__(
             self.TITLE, description=description, **kwargs)
 
@@ -62,6 +62,18 @@ class HTTPPreconditionFailed(falcon.HTTPPreconditionFailed):
 
     def __init__(self, description):
         super(HTTPPreconditionFailed, self).__init__(self.TITLE, description)
+
+
+class HTTPRequestEntityTooLarge(falcon.HTTPError):
+
+    """Wraps falcon.HTTP_413 with a contextual title."""
+
+    TITLE = u'Request Entity Too Large'
+
+    def __init__(self, description):
+        super(HTTPRequestEntityTooLarge, self).__init__(status.HTTP_413,
+                                                        self.TITLE,
+                                                        description)
 
 
 class HTTPNotFound(falcon.HTTPNotFound):
