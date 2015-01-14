@@ -221,6 +221,7 @@ SQL_CREATE_FILEBLOCK_LIST = '''
     SELECT blocks.blockid, fileblocks.offset, blocks.size
     FROM blocks, fileblocks
     WHERE fileblocks.blockid = blocks.blockid
+    AND fileblocks.vaultid = blocks.vaultid
     AND fileblocks.projectid = :projectid
     AND fileblocks.vaultid = :vaultid
     AND fileblocks.fileid = :fileid
