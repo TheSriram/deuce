@@ -25,7 +25,7 @@ class DiskStorageDriver(BlockStorageDriver):
     block_permission = 0o640
 
     def __init__(self):
-        self._path = conf.block_storage_driver.options.path
+        self._path = conf.block_storage_driver.disk.path
 
     def _get_vault_path(self, vault_id):
         return os.path.join(self._path, str(deuce.context.project_id),
