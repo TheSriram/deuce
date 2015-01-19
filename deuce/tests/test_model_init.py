@@ -1,5 +1,3 @@
-import unittest
-
 from deuce.tests import *
 from deuce.model import (
     init_model,
