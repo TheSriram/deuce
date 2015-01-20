@@ -1,7 +1,11 @@
 import six
+import sys
+import deuce
 from deuce.drivers.blockstoragedriver import BlockStorageDriver
 from deuce import conf
 import mock
+from mock import patch
+from unittest.mock import call
 from deuce.drivers.swift import SwiftStorageDriver
 
 from deuce.tests.test_disk_storage_driver import DiskStorageDriverTest
@@ -147,11 +151,15 @@ class SwiftStorageDriverTest(DiskStorageDriverTest):
             self.assertEqual(driver.get_block_object_length(vault_id,
                                                             block_id),
                              0)
+        with mock.patch(
+            'deuce.tests.db_mocking.swift_mocking.client._mock_status_code'
+        ) as mock_status:
 
-            get_object.side_effect = None
-            get_object.return_value = ({'x-header': 'mock'}, False)
+            with mock.patch('os.path.exists') as path_status:
+                path_status.return_value = True
+                mock_status.return_value = 500
 
-            self.assertIsNone(driver.get_block_obj(vault_id, block_id))
+                self.assertIsNone(driver.get_block_obj(vault_id, block_id))
 
         # Stats should come back as zero even though the connection
         # "dropped"

@@ -1,3 +1,4 @@
+import bisect
 import io
 import os
 import os.path
@@ -59,9 +60,9 @@ class DiskStorageDriver(BlockStorageDriver):
             if marker:
                 try:
                     index = total_contents.index(marker)
-                    return total_contents[index:(index + limit)]
                 except ValueError:
-                    return []
+                    index = bisect.bisect(total_contents, marker)
+                return total_contents[index:(index + limit)]
             else:
                 return total_contents[:limit]
 
