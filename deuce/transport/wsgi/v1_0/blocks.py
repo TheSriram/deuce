@@ -234,14 +234,11 @@ class CollectionResource(object):
                 block_ids = list(unpacked.keys())
                 block_datas = list(unpacked.values())
                 try:
-                    retval, retblocks = vault.put_async_block(
+                    retval = vault.put_async_block(
                         block_ids,
                         block_datas)
                     if retval:
-                        resp.status = falcon.HTTP_200
-                        resp.body = json.dumps({block_id: storage_id
-                                               for block_id, storage_id
-                                               in retblocks})
+                        resp.status = falcon.HTTP_201
                     else:
                         raise errors.HTTPInternalServerError('Block '
                                                             'Post Failed')
