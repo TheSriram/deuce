@@ -19,13 +19,6 @@ from swiftclient.exceptions import ClientException
 
 class SwiftStorageDriverTest(DiskStorageDriverTest):
 
-    def setUp(self):
-        super(SwiftStorageDriverTest, self).setUp()
-        storage_url, auth_token = self.get_Auth_Token()
-        import deuce
-        deuce.context.openstack.auth_token = auth_token
-        deuce.context.openstack.swift.storage_url = storage_url
-
     def create_driver(self):
         return SwiftStorageDriver()
 
