@@ -93,8 +93,6 @@ class Vault(object):
             block_ids,
             blockdatas)
 
-        retblocks = []
-
         # (BenjamenMeyer): If we fail to upload any one block then we
         # let the Validation and Clean-Up Service remove any uploaded blocks
         # and fail out the request as a whole
@@ -109,20 +107,13 @@ class Vault(object):
                                                                   storage_ids,
                                                                   blockdatas,
                                                                   block_sizes):
-                logger.info('Project {0}, Vault {1}: Associating metadata '
-                            'block {2} with storage block {3}'
-                            .format(deuce.context.project_id,
-                                    self.id,
-                                    block_id,
-                                    storageid))
                 deuce.metadata_driver.register_block(
                     self.id,
                     block_id,
                     storageid,
                     block_size)
-                retblocks.append((block_id, storageid))
 
-        return (retval, retblocks)
+        return retval
 
     def get_blocks(self, marker, limit):
         gen = deuce.metadata_driver.create_block_generator(
@@ -134,6 +125,11 @@ class Vault(object):
         if self._meta_has_block(block_id):
             if check_storage:
                 if not self._storage_has_block(block_id):
+
+                    # Record in metadata that the block is bad
+                    deuce.metadata_driver.mark_block_as_bad(
+                        self.id, block_id)
+
                     raise ConsistencyError(deuce.context.project_id,
                                            self.id, block_id,
                                            msg='Block does not exist'
