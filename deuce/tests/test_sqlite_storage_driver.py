@@ -733,9 +733,12 @@ class SqliteStorageDriverTest(V1Base):
             driver.register_block(vault_id, bid,
                 self._genstorageid(bid), 1024)
 
+        # None of the blocks are bad so
+        # the list returned should be empty
         self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
             check_status=True), [])
 
+        # Let's mark all the blocks to be bad
         for bid in bad_block_ids:
             driver.mark_block_as_bad(vault_id, bid)
 
@@ -745,23 +748,30 @@ class SqliteStorageDriverTest(V1Base):
         for i in range(len(bad_block_ids)):
             offsets.append(i * 1024)
 
+        # Now Let's try assign all the bad blocks to a file
         driver.assign_blocks(vault_id,
                              file_id,
                              bad_block_ids,
                              offsets)
-
+        # GapError is raised, because bad blocks behave like
+        # non-existent blocks
         with self.assertRaises(GapError):
             driver.finalize_file(vault_id,
                                  file_id,
                                  1024 * len(bad_block_ids))
 
+        # Now, we go and re-register all the blocks, this should
+        # switch the isinvalid flag, and make the blocks valid again
+        # ergo, the blocks have now been healed, by being reuploaded.
         for bid in bad_block_ids:
             driver.register_block(vault_id, bid,
                 self._genstorageid(bid), 1024)
 
+        # Check if blocks are valid again
         self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
             check_status=True), [])
 
+        # Finalize file with valid blocks
         driver.finalize_file(vault_id,
                              file_id,
                              1024 * len(bad_block_ids))
