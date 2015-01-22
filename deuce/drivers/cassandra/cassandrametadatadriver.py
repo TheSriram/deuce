@@ -297,6 +297,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
             auth_provider=auth_provider,
             ssl_options=ssl_options)
 
+        # NOTE(TheSriram): We need the total number of nodes in the
+        # cluster to be greater than two, if we are going to apply
+        # any level of consistency other than ONE
+
         if len(self._cluster.contact_points) > 2:
             self.consistency_level = getattr(self.consistency,
                 conf.metadata_driver.cassandra.consistency)
