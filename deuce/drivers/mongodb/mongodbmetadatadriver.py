@@ -535,18 +535,25 @@ class MongoDbStorageDriver(MetadataStorageDriver):
             self._blocks.update(block_args, update_args, upsert=False)
 
     def register_block(self, vault_id, block_id, storage_id, blocksize):
-        if not self.has_block(vault_id, block_id):
+        if not self.has_block(vault_id, block_id, check_status=True):
             args = {
                 'projectid': deuce.context.project_id,
                 'vaultid': vault_id,
                 'blockid': str(block_id),
-                'storageid': storage_id,
                 'blocksize': blocksize,
-                'isinvalid': False,
-                'reftime': int(datetime.datetime.utcnow().timestamp())
             }
-
-            self._blocks.update(args, args, upsert=True)
+            update_args = {
+                '$set': {
+                    'reftime': int(datetime.datetime.utcnow().timestamp()),
+                    'storageid': storage_id,
+                    'projectid': deuce.context.project_id,
+                    'vaultid': vault_id,
+                    'blockid': str(block_id),
+                    'blocksize': blocksize,
+                    'isinvalid': False
+                }
+            }
+            self._blocks.update(args, update_args, upsert=True)
 
     def unregister_block(self, vault_id, block_id):
 

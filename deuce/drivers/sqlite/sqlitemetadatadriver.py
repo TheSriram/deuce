@@ -226,6 +226,7 @@ SQL_CREATE_FILEBLOCK_LIST = '''
     AND fileblocks.projectid = :projectid
     AND fileblocks.vaultid = :vaultid
     AND fileblocks.fileid = :fileid
+    AND blocks.isinvalid = 0
     ORDER by offset
 '''
 
@@ -244,10 +245,10 @@ SQL_ASSIGN_BLOCK_TO_FILE = '''
 '''
 
 SQL_REGISTER_BLOCK = '''
-    INSERT INTO blocks
-    (projectid, vaultid, blockid, storageid, size, reftime)
+    INSERT OR REPLACE INTO blocks
+    (projectid, vaultid, blockid, storageid, size, reftime, isinvalid)
     VALUES (:projectid, :vaultid, :blockid, :storageid, :blocksize,
-    strftime('%s', 'now'))
+    strftime('%s', 'now'), 0)
 '''
 
 SQL_UNREGISTER_BLOCK = '''
@@ -752,7 +753,7 @@ class SqliteStorageDriver(MetadataStorageDriver):
             self._conn.commit()
 
     def register_block(self, vault_id, block_id, storage_id, blocksize):
-        if not self.has_block(vault_id, block_id):
+        if not self.has_block(vault_id, block_id, check_status=True):
             args = {
                 'projectid': deuce.context.project_id,
                 'vaultid': vault_id,

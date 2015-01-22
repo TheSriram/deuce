@@ -24,7 +24,7 @@ class Session(object):
             return 'true'
 
         original_query = query
-
+        res = None
         query = query.replace('false', '0')
         query = query.replace('true', '1')
 
@@ -70,6 +70,22 @@ class Session(object):
 
             self.conn.execute(insert_query, insert_args)
 
+        elif original_query == actual_driver.CQL_REGISTER_BLOCK:
+
+            # Cassandra's inserts by default are upserts, when mocked with
+            # sqlite the query needs to be changed.
+
+            upsert_query = """
+                INSERT OR REPLACE INTO blocks
+                (projectid, vaultid, blockid, storageid, blocksize, reftime,
+                isinvalid)
+                VALUES (:projectid, :vaultid, :blockid, :storageid,
+                :blocksize,
+                strftime('%s', 'now'), 0)
+            """
+            upsert_args = queryargs.copy()
+            self.conn.execute(upsert_query, upsert_args)
+
         elif original_query == actual_driver.CQL_UPDATE_REF_TIME or \
                 original_query == actual_driver.CQL_REGISTER_BLOCK:
 
@@ -83,8 +99,9 @@ class Session(object):
             # So the following gives us the same query as the original
             query = "SELECT strftime('%s', 'now')"
 
-        res = self.conn.execute(query, queryargs)
-        res = list(res)
+        if not original_query == actual_driver.CQL_REGISTER_BLOCK:
+            res = self.conn.execute(query, queryargs)
+            res = list(res)
 
         if original_query == actual_driver.CQL_GET_BLOCK_STATUS:
             # Special-case the return value of this query. Returns

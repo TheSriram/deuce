@@ -721,6 +721,51 @@ class SqliteStorageDriverTest(V1Base):
             sorted(driver.has_blocks(vault_id, block_ids, check_status=True)),
             sorted(bad_block_ids))
 
+    def test_assign_bad_blocks(self):
+        driver = self.create_driver()
+        vault_id = self.create_vault_id()
+        file_id = self.create_file_id()
+        num_blocks = 50
+
+        bad_block_ids = ['block_{0}'.format(id) for id in range(0, num_blocks)]
+
+        for bid in bad_block_ids:
+            driver.register_block(vault_id, bid,
+                self._genstorageid(bid), 1024)
+
+        self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
+            check_status=True), [])
+
+        for bid in bad_block_ids:
+            driver.mark_block_as_bad(vault_id, bid)
+
+        driver.create_file(vault_id, file_id)
+        offsets = []
+
+        for i in range(len(bad_block_ids)):
+            offsets.append(i * 1024)
+
+        driver.assign_blocks(vault_id,
+                             file_id,
+                             bad_block_ids,
+                             offsets)
+
+        with self.assertRaises(GapError):
+            driver.finalize_file(vault_id,
+                                 file_id,
+                                 1024 * len(bad_block_ids))
+
+        for bid in bad_block_ids:
+            driver.register_block(vault_id, bid,
+                self._genstorageid(bid), 1024)
+
+        self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
+            check_status=True), [])
+
+        driver.finalize_file(vault_id,
+                             file_id,
+                             1024 * len(bad_block_ids))
+
     def test_file_block_generator_marker_limit(self):
         driver = self.create_driver()
 
