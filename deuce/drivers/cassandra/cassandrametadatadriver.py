@@ -298,7 +298,8 @@ class CassandraStorageDriver(MetadataStorageDriver):
             ssl_options=ssl_options)
 
         if len(self._cluster.contact_points) > 2:
-            self.consistency_level = self.consistency.LOCAL_QUORUM
+            self.consistency_level = getattr(self.consistency,
+                conf.metadata_driver.cassandra.consistency)
         else:
             self.consistency_level = self.consistency.ONE
 
