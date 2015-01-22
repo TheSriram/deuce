@@ -4,6 +4,20 @@ import deuce.drivers.cassandra.cassandrametadatadriver \
 import uuid
 
 
+class ConsistencyLevel(object):
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def ONE():
+        pass
+
+    @staticmethod
+    def LOCAL_QUORUM():
+        pass
+
+
 class Future(object):
 
     def __init__(self, result):

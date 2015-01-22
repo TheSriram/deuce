@@ -61,9 +61,14 @@ class Cluster(object):
     def __init__(self, contact_points, auth_provider, ssl_options):
         # Create the mock driver in memory only
         self._sqliteconn = sqlite3.connect(':memory:')
+        self.cluster_contact_points = contact_points
 
         for stmt in MOCK_CASSANDRA_SCHEMA:
             self._sqliteconn.execute(stmt)
+
+    @property
+    def contact_points(self):
+        return self.cluster_contact_points
 
     def connect(self, keyspace):
         return Session(self._sqliteconn)

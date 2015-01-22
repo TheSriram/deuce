@@ -190,7 +190,7 @@ class MetadataStorageDriver(object):
         raise NotImplementedError
 
     @abstractmethod
-    def mark_block_as_bad(self, vault_id, block_id, check_status=False):
+    def mark_block_as_bad(self, vault_id, block_id):
         """Marks the block in the metadata driver as being a bad
         block."""
         raise NotImplementedError
