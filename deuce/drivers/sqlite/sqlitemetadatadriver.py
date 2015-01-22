@@ -95,6 +95,7 @@ SQL_GET_BLOCK = '''
     WHERE projectid = :projectid
     AND vaultid = :vaultid
     AND blockid = :blockid
+    AND isinvalid = 0
 '''
 
 SQL_GET_FILE = '''

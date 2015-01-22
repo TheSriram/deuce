@@ -83,7 +83,8 @@ class CollectionResource(object):
         payload = json.loads(body.decode())
         block_ids, offsets = zip(*payload)
 
-        missing_blocks = deuce.metadata_driver.has_blocks(vault_id, block_ids)
+        missing_blocks = deuce.metadata_driver.has_blocks(vault_id, block_ids,
+                                                          check_status=True)
         deuce.metadata_driver.assign_blocks(vault_id, file_id, block_ids,
                                             offsets)
 

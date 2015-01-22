@@ -705,11 +705,17 @@ class SqliteStorageDriverTest(V1Base):
             self.assertEqual(driver.has_block(vault_id, bid,
                 check_status=True), bid not in bad_block_ids)
 
-            # Ensure that we did not erase other information
-            # about the block such as the block size (this is
-            # mos likely in Cassandra)
+        # Ensure that we did not erase other information
+        # about the block such as the block size for good blocks
+        # (this is most likely in Cassandra)
+
+        for bid in list(set(block_ids) - set(bad_block_ids)):
             self.assertEqual(driver.get_block_data(vault_id, bid)['blocksize'],
                              1024)
+
+        for bid in bad_block_ids:
+            with self.assertRaises(Exception):
+                data = driver.get_block_data(vault_id, bid)['blocksize']
 
         self.assertEqual(
             sorted(driver.has_blocks(vault_id, block_ids, check_status=True)),

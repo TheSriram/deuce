@@ -389,7 +389,8 @@ class MongoDbStorageDriver(MetadataStorageDriver):
         args = {
             'projectid': deuce.context.project_id,
             'vaultid': vault_id,
-            'blockid': str(block_id)
+            'blockid': str(block_id),
+            'isinvalid': False,
         }
 
         return self._blocks.find_one(args)
