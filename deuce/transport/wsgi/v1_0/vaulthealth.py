@@ -1,15 +1,6 @@
 import json
-from stoplight import validate
-import falcon
-import msgpack
 
-import deuce
-from deuce import conf
-from deuce.util import set_qs_on_url
-from deuce.model import Vault
-from deuce.model import Block
-from deuce.model.exceptions import ConsistencyError
-from deuce.drivers.metadatadriver import ConstraintError
+from stoplight import validate
 
 from deuce.transport.validation import *
 from deuce.model import Vault
