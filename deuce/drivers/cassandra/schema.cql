@@ -57,3 +57,11 @@ CREATE TABLE fileblocks (
   offset BIGINT,
   PRIMARY KEY((projectid, vaultid, fileid), offset)
 );
+
+CREATE TABLE blockfiles (
+    projectid TEXT,
+    vaultid TEXT,
+    fileid UUID,
+    blockid TEXT,
+    PRIMARY KEY(projectid, vaultid, blockid)
+);
