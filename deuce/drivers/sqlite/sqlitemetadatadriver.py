@@ -128,6 +128,21 @@ SQL_GET_ALL_FILE_BLOCKS = '''
     AND fileid = :fileid
     ORDER BY offset
 '''
+SQL_GET_BAD_BLOCKS = '''
+    SELECT blockid
+    FROM blocks
+    WHERE projectid = :projectid
+    AND vaultid = :vaultid
+    AND isinvalid = 1
+'''
+
+SQL_GET_FILE_PER_BLOCK = '''
+    SELECT fileid
+    FROM fileblocks
+    WHERE projectid = :projectid
+    AND vaultid = :vaultid
+    AND blockid = :blockid
+'''
 
 SQL_UPDATE_REF_TIME_BLOCKS_IN_FILE = '''
     UPDATE blocks
@@ -416,6 +431,40 @@ class SqliteStorageDriver(MetadataStorageDriver):
         res['internal'] = {}
 
         return res
+
+    def vault_health(self, vault_id):
+        '''Returns the number of bad blocks and bad files associated
+        with a vault'''
+
+        args = dict(
+            projectid=deuce.context.project_id,
+            vaultid=vault_id,
+        )
+
+        res = self._conn.execute(SQL_GET_BAD_BLOCKS, args)
+
+        bad_blocks = [row[0] for row in res]
+
+        no_of_bad_blocks = len(bad_blocks)
+
+        bad_files = set()
+
+        for block_id in bad_blocks:
+            args = dict(
+                projectid=deuce.context.project_id,
+                vaultid=vault_id,
+                blockid=block_id,
+            )
+            result = self._conn.execute(SQL_GET_FILE_PER_BLOCK, args)
+            bad_file = [row[0] for row in result]
+            try:
+                bad_files.add(bad_file[0])
+            except IndexError:
+                pass
+
+        no_of_bad_files = len(bad_files)
+
+        return (no_of_bad_blocks, no_of_bad_files)
 
     def create_file(self, vault_id, file_id):
         """Creates a new file with no blocks and no files"""

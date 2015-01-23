@@ -114,6 +114,40 @@ class MongoDbStorageDriver(MetadataStorageDriver):
 
         return res
 
+    def vault_health(self, vault_id):
+        '''Returns the number of bad blocks and bad files associated
+        with a vault'''
+
+        args = dict(
+            projectid=deuce.context.project_id,
+            vaultid=vault_id,
+            isinvalid=True
+        )
+        self._blocks.ensure_index([('projectid', 1),
+                ('vaultid', 1)])
+
+        results = self._blocks.find(args)
+
+        bad_blocks = ([res['blockid'] for res in results])
+        no_of_bad_blocks = len(bad_blocks)
+        bad_files = set()
+
+        self._fileblocks.ensure_index([('projectid', 1),
+                ('vaultid', 1), ('blockid', 1)])
+
+        for block_id in bad_blocks:
+            args = dict(
+                projectid=deuce.context.project_id,
+                vaultid=vault_id,
+                blockid=block_id,
+            )
+            results = self._fileblocks.find(args)
+            bad_files.update([res['fileid'] for res in results])
+
+        no_of_bad_files = len(bad_files)
+
+        return (no_of_bad_blocks, no_of_bad_files)
+
     def create_file(self, vault_id, file_id):
         """Creates a new FILES with no blocks and no files"""
         args = {

@@ -101,6 +101,14 @@ class Session(object):
             # So the following gives us the same query as the original
             query = "SELECT strftime('%s', 'now')"
 
+        elif original_query == actual_driver.CQL_REGISTER_FILE_TO_BLOCK:
+
+            query = """
+                INSERT or REPLACE INTO blockfiles
+                (projectid, vaultid, fileid, blockid)
+                VALUES (:projectid, :vaultid, :fileid, :blockid)
+            """
+
         res = self.conn.execute(query, queryargs)
         res = list(res)
 
