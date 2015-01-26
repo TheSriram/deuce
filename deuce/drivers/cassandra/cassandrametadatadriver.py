@@ -941,12 +941,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
             offset=offset
         )
 
-
         block_to_file_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
             consistency_level=self.consistency_level)
         file_to_block_query = self.simplestatement(CQL_REGISTER_FILE_TO_BLOCK,
             consistency_level=self.consistency_level)
-
 
         blockfile_args = args.copy()
 
