@@ -86,6 +86,36 @@ class SqliteStorageDriverTest(V1Base):
 
         self.assertFalse(driver.has_file(vault_id, file_id))
 
+    def test_finalize_files(self):
+        driver = self.create_driver()
+
+        vaults = {
+            self.create_vault_id(): self.create_file_id()
+            for _ in range(2)
+        }
+
+        block_data = 'a'
+        block_length = len(block_data)
+        block_id = 's'
+        block_offset = 0
+
+        for vault_id, file_id in vaults.items():
+            driver.register_block(vault_id,
+                                  block_id,
+                                  self._genstorageid(block_id),
+                                  block_length)
+            results = driver.has_blocks(vault_id, block_id)
+            self.assertEqual(results, [])
+
+            driver.assign_blocks(vault_id,
+                                 file_id,
+                                 [block_id],
+                                 [block_offset])
+
+            driver.finalize_file(vault_id,
+                                 file_id,
+                                 block_length)
+
     def test_finalize_empty_file(self):
         driver = self.create_driver()
 
