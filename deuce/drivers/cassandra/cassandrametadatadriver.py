@@ -187,7 +187,7 @@ CQL_ASSIGN_BLOCK_TO_FILE = '''
     INSERT INTO fileblocks
     (projectid, vaultid, fileid, blockid, blocksize, offset)
     VALUES (%(projectid)s, %(vaultid)s, %(fileid)s, %(blockid)s,
-      %(blocksize)s, %(offset)s)
+    %(blocksize)s, %(offset)s)
 '''
 CQL_REGISTER_FILE_TO_BLOCK = '''
     INSERT INTO blockfiles
@@ -886,10 +886,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
         # this to be compatible with the other drivers.
         futures = []
 
-        block_to_file_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+        file_to_block_query = self.simplestatement(CQL_REGISTER_FILE_TO_BLOCK,
             consistency_level=self.consistency_level)
 
-        file_to_block_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+        block_to_file_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
             consistency_level=self.consistency_level)
 
         for block_id, blocksize, offset in zip(block_ids, blocksizes,
@@ -904,7 +904,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
             )
 
             fileblocks_future = self._session.execute_async(
-                file_to_block_query,
+                block_to_file_query,
                 args)
             futures.append(fileblocks_future)
 
@@ -914,8 +914,8 @@ class CassandraStorageDriver(MetadataStorageDriver):
             del blockfile_args['blocksize']
 
             blockfiles_future = self._session.execute_async(
-                block_to_file_query,
-                args)
+                file_to_block_query,
+                blockfile_args)
 
             futures.append(blockfiles_future)
 
