@@ -10,6 +10,7 @@ from mock import patch
 from six.moves.urllib.parse import urlparse, parse_qs
 
 from deuce import conf
+from deuce.model import Vault
 import deuce
 from deuce.tests import ControllerTest
 from deuce.util.misc import set_qs, relative_uri
@@ -137,6 +138,56 @@ class TestFiles(ControllerTest):
                                      headers=self._hdrs)
 
         self.assertEqual(self.srmock.status, falcon.HTTP_404)
+
+    def test_get_corrupt_file(self):
+
+        enough_num = 10
+        bad_file_gen = (None for _ in range(enough_num))
+
+        with patch.object(Vault, 'get_blocks_generator',
+                          return_value=bad_file_gen):
+
+            # Register enough_num of blocks into system.
+            block_list, blocks_data = self.helper_create_blocks(
+                num_blocks=enough_num)
+            self.helper_store_blocks(self.vault_id, blocks_data)
+
+            # NOTE(TheSriram): data is list of lists of the form:
+            # [[blockid, offset], [blockid, offset]]
+            data = json.dumps([[block_list[cnt], cnt * 100]
+                     for cnt in range(0, enough_num)])
+
+            hdrs = {'content-type': 'application/x-deuce-block-list'}
+            hdrs.update(self._hdrs)
+
+            # Assign blocks to file and make sure there are no missing blocks
+
+            response = self.simulate_post(self._fileblocks_path, body=data,
+                                          headers=hdrs)
+
+            self.assertEqual(len(response[0].decode()), 2)
+
+            # Successfully finalize file
+
+            finalize_hdrs = hdrs.copy()
+            finalize_hdrs['x-file-length'] = str(enough_num * 100)
+            response = self.simulate_post(self._file_path,
+                                          headers=finalize_hdrs)
+            self.assertEqual(self.srmock.status, falcon.HTTP_200)
+
+            # Try to get the corrupt file, since we have patched
+            # get_blocks_generator to return None, this in turn would cause
+            # a premature closure of the generator, making it raise a
+            # StopIteration
+
+            response = self.simulate_get(self._file_path, headers=self._hdrs)
+            self.assertEqual(self.srmock.status, falcon.HTTP_200)
+
+            actual_file = list(response)
+            file_length = sum(len(file_chunk) for file_chunk in actual_file)
+
+            # Total received bytes is therefore zero
+            self.assertEqual(file_length, 0)
 
     def test_get_one(self):
         # vault does not exists

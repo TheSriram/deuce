@@ -105,7 +105,12 @@ class ItemResource(object):
         # NOTE(TheSriram): falcon 0.2.0 might fix this problem,
         # we should be able to set resp.stream to any file like
         # object instead of an iterator.
-        resp.stream = (obj.read() for obj in objs)
+
+        def premature_close():
+            raise StopIteration
+
+        resp.stream = (obj.read() if obj else premature_close()
+                       for obj in objs)
         resp.status = falcon.HTTP_200
         resp.set_header('Content-Length', str(vault.get_file_length(file_id)))
         resp.content_type = 'application/octet-stream'
