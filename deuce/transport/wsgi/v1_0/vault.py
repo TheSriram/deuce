@@ -23,11 +23,6 @@ class ItemResource(object):
 
         if vault:
             vault_stats = vault.get_vault_statistics()
-            # bad_blocks, bad_files = vault.get_vault_health()
-            #
-            # vault_stats['metadata']['blocks']['bad'] = bad_blocks
-            # vault_stats['metadata']['files']['bad'] = bad_files
-
             resp.body = json.dumps(vault_stats)
             resp.status = falcon.HTTP_200
         else:
