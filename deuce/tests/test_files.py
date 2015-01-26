@@ -157,19 +157,16 @@ class TestFiles(ControllerTest):
             data = json.dumps([[block_list[cnt], cnt * 100]
                      for cnt in range(0, enough_num)])
 
-            hdrs = {'content-type': 'application/x-deuce-block-list'}
-            hdrs.update(self._hdrs)
-
             # Assign blocks to file and make sure there are no missing blocks
 
             response = self.simulate_post(self._fileblocks_path, body=data,
-                                          headers=hdrs)
+                                          headers=self._hdrs)
 
             self.assertEqual(len(response[0].decode()), 2)
 
             # Successfully finalize file
 
-            finalize_hdrs = hdrs.copy()
+            finalize_hdrs = self._hdrs.copy()
             finalize_hdrs['x-file-length'] = str(enough_num * 100)
             response = self.simulate_post(self._file_path,
                                           headers=finalize_hdrs)
@@ -261,8 +258,6 @@ class TestFiles(ControllerTest):
 
         self.assertEqual(self.srmock.status, falcon.HTTP_400)
 
-        hdrs = {'content-type': 'application/x-deuce-block-list'}
-        hdrs.update(self._hdrs)
         enough_num = int(conf.api_configuration.default_returned_num)
 
         # Register enough_num of blocks into system.
@@ -275,11 +270,11 @@ class TestFiles(ControllerTest):
                  for cnt in range(0, enough_num)])
 
         response = self.simulate_post(self._distractor_fileblocks_path,
-                                      body=data, headers=hdrs)
+                                      body=data, headers=self._hdrs)
 
         # Add blocks to FILES, resp has a list of missing blocks.
         response = self.simulate_post(self._fileblocks_path, body=data,
-                                      headers=hdrs)
+                                      headers=self._hdrs)
 
         self.assertGreater(len(response[0].decode()), 2)
         # assert len(response.body) > 2
@@ -290,13 +285,13 @@ class TestFiles(ControllerTest):
         # Add the same blocks to FILES again, resp is empty.
 
         response = self.simulate_post(self._fileblocks_path, body=data,
-                                      headers=hdrs)
+                                      headers=self._hdrs)
 
         self.assertEqual(len(response[0].decode()), 2)
         # assert len(response.body) == 2
 
         # Get unfinalized file.
-        response = self.simulate_get(self._file_path, headers=hdrs)
+        response = self.simulate_get(self._file_path, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_409)
 
         # Register 1.20 times of blocks into system.
@@ -311,7 +306,7 @@ class TestFiles(ControllerTest):
                  for cnt in range(enough_num, enough_num2)])
 
         response = self.simulate_post(self._fileblocks_path, body=data2,
-                                      headers=hdrs)
+                                      headers=self._hdrs)
         self.assertGreater(len(response[0].decode()), 2)
         # assert len(response.body) > 2
 
@@ -321,53 +316,52 @@ class TestFiles(ControllerTest):
         # Add blocks. resp will be empty.
 
         response = self.simulate_post(self._fileblocks_path, body=data2,
-                                      headers=hdrs)
+                                      headers=self._hdrs)
         self.assertEqual(len(response[0].decode()), 2)
 
         # Get the file.
-        response = self.simulate_get(self._file_path, headers=hdrs)
+        response = self.simulate_get(self._file_path, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_409)
 
         # Failed Finalize file for block gap & overlap
 
-        failhdrs = hdrs.copy()
+        failhdrs = self._hdrs.copy()
         failhdrs['x-file-length'] = '100'
         response = self.simulate_post(self._file_path,
                                       headers=failhdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_409)
 
         # Successfully finalize file
-        good_hdrs = hdrs.copy()
+        good_hdrs = self._hdrs.copy()
         good_hdrs['x-file-length'] = str(enough_num2 * 100)
         response = self.simulate_post(self._file_path, headers=good_hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_200)
 
         # Error on trying to refinalize Finalized file.
-        response = self.simulate_post(self._file_path, headers=hdrs)
+        response = self.simulate_post(self._file_path, headers=self._hdrs)
 
         self.assertEqual(self.srmock.status, falcon.HTTP_409)
 
         # Error on trying to reassign blocks to finalized file
         response = self.simulate_post(self._fileblocks_path,
-                                      body=data, headers=hdrs)
+                                      body=data, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_409)
         # Get finalized file.
-        response = self.simulate_get(self._file_path, headers=hdrs)
+        response = self.simulate_get(self._file_path, headers=self._hdrs)
         actual_file = list(response)
         file_length = sum(len(file_chunk) for file_chunk in actual_file)
         self.assertEqual(file_length, enough_num2 * 100)
         self.assertEqual(self.srmock.status, falcon.HTTP_200)
 
         # List the blocks that make up this file
-        self.helper_file_blocks_controller(self._file_path, hdrs)
+        self.helper_file_blocks_controller(self._file_path, self._hdrs)
 
         # Delete the finalized file. delete returns 'ok'
-        response = self.simulate_delete(self._file_path, headers=hdrs)
+        response = self.simulate_delete(self._file_path, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_204)
 
     def test_check_x_ref_modified_with_change_in_references(self):
-        hdrs = {'content-type': 'application/x-deuce-block-list'}
-        hdrs.update(self._hdrs)
+
         enough_num = int(conf.api_configuration.default_returned_num)
         # Register enough_num of blocks into system.
         block_list, blocks_data = self.helper_create_blocks(
@@ -378,7 +372,7 @@ class TestFiles(ControllerTest):
         control_block = block_list[randrange(0, enough_num)]
         response = self.simulate_head(self.get_block_path(self.vault_id,
                                                           control_block),
-                                      headers=hdrs)
+                                      headers=self._hdrs)
         timestamp_upload_block = self.srmock.headers_dict['x-ref-modified']
         x_ref_count_upload_block = \
             self.srmock.headers_dict['x-block-reference-count']
@@ -393,11 +387,11 @@ class TestFiles(ControllerTest):
         # modifying 'x-ref-modified' timestamp
 
         response = self.simulate_post(self._fileblocks_path,
-                                      body=data, headers=hdrs)
+                                      body=data, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_200)
         response = self.simulate_head(self.get_block_path(self.vault_id,
                                                           control_block),
-                                      headers=hdrs)
+                                      headers=self._hdrs)
         timestamp_assign_block = self.srmock.headers_dict['x-ref-modified']
         x_ref_count_assign_block = \
             self.srmock.headers_dict['x-block-reference-count']
@@ -412,12 +406,12 @@ class TestFiles(ControllerTest):
         # modifying 'x-ref-modified' timestamp
 
         response = self.simulate_delete(self._file_path,
-                                        headers=hdrs)
+                                        headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_204)
 
         response = self.simulate_head(self.get_block_path(self.vault_id,
                                                           control_block),
-                                      headers=hdrs)
+                                      headers=self._hdrs)
         timestamp_delete_file = self.srmock.headers_dict['x-ref-modified']
         x_ref_count_delete_file = \
             self.srmock.headers_dict['x-block-reference-count']
