@@ -184,9 +184,10 @@ class SwiftStorageDriver(BlockStorageDriver):
 
     def get_block_obj(self, vault_id, storage_block_id):
 
+        buff = BytesIO()
+        response = dict()
+
         try:
-            buff = BytesIO()
-            response = dict()
             # NOTE(TheSriram): block is a tuple of
             # headers and response body.
             block = self.Conn.get_object(
@@ -196,12 +197,13 @@ class SwiftStorageDriver(BlockStorageDriver):
                 name=str(storage_block_id),
                 response_dict=response)
 
-            if block[1]:
+            if response['status'] >= 200 and response['status'] < 300:
                 buff.write(block[1])
                 buff.seek(0)
                 return buff
             else:
                 return None
+
         except ClientException:
             return None
 
@@ -219,7 +221,8 @@ class SwiftStorageDriver(BlockStorageDriver):
                     name=str(storage_block_id),
                     response_dict=response)
 
-            return len(block[1])
+            return len(block[1]) if (response['status'] >= 200
+                                     and response['status'] < 300) else 0
 
         except ClientException:
             return 0

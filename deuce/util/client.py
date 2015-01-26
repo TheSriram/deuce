@@ -194,7 +194,7 @@ def delete_object(url, token, container, name, response_dict):
 
 def get_object(url, token, container, name, response_dict):
     headers = {'X-Auth-Token': token}
-    (resp_headers, response) = _request_getobj(
+    (response, resp_headers) = _request_getobj(
         'GET',
         url +
         '/' +
@@ -202,5 +202,7 @@ def get_object(url, token, container, name, response_dict):
         '/' +
         str(name),
         headers=headers)
+
+    response_dict['status'] = response.status
 
     return (resp_headers, response)

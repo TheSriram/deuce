@@ -244,6 +244,11 @@ def delete_object(url,
 
 
 # Get Block
+
+def _mock_status_code():
+    return 200
+
+
 def get_object(url,
             token,
             container,
@@ -254,20 +259,27 @@ def get_object(url,
 
     if not os.path.exists(path):
         raise ClientException('mocking')
-
-    buff = ""
-    with open(path, 'rb') as infile:
-        buff = infile.read()
-
-    mdhash = hashlib.md5()
-    mdhash.update(buff)
-    etag = mdhash.hexdigest()
-
     hdrs = {}
-    hdrs['content-length'] = os.path.getsize(path)
-    hdrs['last-modified'] = os.path.getmtime(path)
-    hdrs['accept-ranges'] = 'bytes'
-    hdrs['etag'] = etag
+    buff = ''
+
+    try:
+
+        with open(path, 'rb') as infile:
+            buff = infile.read()
+
+        mdhash = hashlib.md5()
+        mdhash.update(buff)
+        etag = mdhash.hexdigest()
+
+        hdrs['content-length'] = os.path.getsize(path)
+        hdrs['last-modified'] = os.path.getmtime(path)
+        hdrs['accept-ranges'] = 'bytes'
+        hdrs['etag'] = etag
+
+    except:
+        pass
+
+    response_dict['status'] = _mock_status_code()
     return hdrs, buff
 
 
