@@ -269,6 +269,15 @@ class CassandraStorageDriver(MetadataStorageDriver):
         auth_module = importlib.import_module(
             '{0}.auth'.format(conf.metadata_driver.cassandra.db_module))
 
+        # Import the query submodule
+        query_module = importlib.import_module(
+            '{0}.query'.format(conf.metadata_driver.cassandra.db_module))
+
+        self.consistency = getattr(self.cassandra,
+                                   'ConsistencyLevel')
+        self.simplestatement = getattr(query_module,
+                                       'SimpleStatement')
+
         if conf.metadata_driver.cassandra.ssl_enabled:
             ssl_version = getattr(ssl,
                                   conf.metadata_driver.cassandra.tls_version)
@@ -288,6 +297,16 @@ class CassandraStorageDriver(MetadataStorageDriver):
             auth_provider=auth_provider,
             ssl_options=ssl_options)
 
+        # NOTE(TheSriram): We need the total number of nodes in the
+        # cluster to be greater than two, if we are going to apply
+        # any level of consistency other than ONE
+
+        if len(self._cluster.contact_points) > 2:
+            self.consistency_level = getattr(self.consistency,
+                conf.metadata_driver.cassandra.consistency)
+        else:
+            self.consistency_level = self.consistency.ONE
+
         deuce_keyspace = conf.metadata_driver.cassandra.keyspace
         self._session = self._cluster.connect(deuce_keyspace)
 
@@ -297,7 +316,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
             projectid=deuce.context.project_id,
             vaultid=vault_id
         )
-        res = self._session.execute(CQL_CREATE_VAULT, args)
+
+        query = self.simplestatement(CQL_CREATE_VAULT,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         return
 
     def delete_vault(self, vault_id):
@@ -305,7 +327,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             projectid=deuce.context.project_id,
             vaultid=vault_id
         )
-        self._session.execute(CQL_DELETE_VAULT, args)
+        query = self.simplestatement(CQL_DELETE_VAULT,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         return
 
     def create_vaults_generator(self, marker=None, limit=None):
@@ -314,7 +338,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             vaultid=marker or '',
             limit=self._determine_limit(limit)
         )
-        res = self._session.execute(CQL_GET_ALL_VAULTS, args)
+        query = self.simplestatement(CQL_GET_ALL_VAULTS,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         return [row[0] for row in res]
 
     def get_vault_statistics(self, vault_id):
@@ -329,7 +355,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
         )
 
         def __stats_query(cql_statement, default_value):
-            result = self._session.execute(cql_statement, args)
+            query = self.simplestatement(cql_statement,
+                consistency_level=self.consistency_level)
+            result = self._session.execute(query, args)
+
             try:
                 return result[0][0]
 
@@ -365,7 +394,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             size=0
         )
 
-        res = self._session.execute(CQL_CREATE_FILE, args)
+        query = self.simplestatement(CQL_CREATE_FILE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         return file_id
 
@@ -377,7 +408,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        res = self._session.execute(CQL_GET_FILE_SIZE, args)
+        query = self.simplestatement(CQL_GET_FILE_SIZE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             return int(res[0][0])
@@ -392,7 +425,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_STORAGE_ID, args)
+        query = self.simplestatement(CQL_GET_STORAGE_ID,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         try:
             return str(res[0][0])
         except IndexError:
@@ -406,7 +441,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             storageid=storage_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_ID, args)
+        query = self.simplestatement(CQL_GET_BLOCK_ID,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         try:
             return str(res[0][0])
         except IndexError:
@@ -419,7 +456,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        res = self._session.execute(CQL_GET_FILE, args)
+        query = self.simplestatement(CQL_GET_FILE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         return len(res) > 0
 
@@ -431,7 +470,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        res = self._session.execute(CQL_GET_FILE, args)
+        query = self.simplestatement(CQL_GET_FILE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             row = res[0]
@@ -447,13 +488,18 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        self._session.execute(CQL_DELETE_FILE, args)
+        query = self.simplestatement(CQL_DELETE_FILE,
+            consistency_level=self.consistency_level)
+        self._session.execute(query, args)
 
         # now list the file blocks and decrement the block reference count
-        res = self._session.execute(CQL_GET_ALL_FILE_BLOCKS_W_SIZE, args)
+        query = self.simplestatement(CQL_GET_ALL_FILE_BLOCKS_W_SIZE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
-        for block_id, offset, block_size in res:
-            self._inc_block_ref_count(vault_id, block_id, -1)
+        self._inc_block_ref_counts(vault_id,
+                                   [data[0] for data in res],
+                                   -1)
 
     def finalize_file(self, vault_id, file_id, file_size=None):
         """Updates the files table to set a file to finalized. This function
@@ -469,7 +515,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        res = self._session.execute(CQL_GET_ALL_FILE_BLOCKS_W_SIZE, args)
+        query = self.simplestatement(CQL_GET_ALL_FILE_BLOCKS_W_SIZE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         for blockid, offset, size in res:
 
@@ -523,7 +571,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 fileid=uuid.UUID(file_id)
             )
 
-            res = self._session.execute(CQL_FINALIZE_FILE, args)
+            query = self.simplestatement(CQL_FINALIZE_FILE,
+                consistency_level=self.consistency_level)
+            res = self._session.execute(query, args)
 
     def get_block_data(self, vault_id, block_id):
 
@@ -533,7 +583,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_SIZE, args)
+        query = self.simplestatement(CQL_GET_BLOCK_SIZE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             return dict(blocksize=res[0][0])
@@ -550,7 +602,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_SIZE, args)
+        query = self.simplestatement(CQL_GET_BLOCK_SIZE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             return res[0][0]
@@ -568,6 +622,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 return None
 
         futures = []
+
+        query = self.simplestatement(CQL_GET_BLOCK_SIZE,
+            consistency_level=self.consistency_level)
+
         for block_id in block_ids:
             args = dict(
                 projectid=deuce.context.project_id,
@@ -575,7 +633,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 blockid=block_id
             )
 
-            future = self._session.execute_async(CQL_GET_BLOCK_SIZE, args)
+            future = self._session.execute_async(query, args)
             futures.append(future)
         return [get_result(future.result()) for future in futures]
 
@@ -587,7 +645,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             fileid=uuid.UUID(file_id)
         )
 
-        res = self._session.execute(CQL_GET_FILE, args)
+        query = self.simplestatement(CQL_GET_FILE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             row = res[0]
@@ -604,7 +664,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        self._session.execute(CQL_MARK_BLOCK_AS_BAD, args)
+        query = self.simplestatement(CQL_MARK_BLOCK_AS_BAD,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
     @staticmethod
     def _block_exists(result, check_status):
@@ -632,13 +694,17 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_STATUS, args)
+        query = self.simplestatement(CQL_GET_BLOCK_STATUS,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         return CassandraStorageDriver._block_exists(res, check_status)
 
     def has_blocks(self, vault_id, block_ids, check_status=False):
 
         futures = []
+        query = self.simplestatement(CQL_GET_BLOCK_STATUS,
+            consistency_level=self.consistency_level)
 
         for block_id in block_ids:
             args = dict(
@@ -647,7 +713,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 blockid=block_id
             )
 
-            future = self._session.execute_async(CQL_GET_BLOCK_STATUS, args)
+            future = self._session.execute_async(query, args)
             futures.append((future, block_id))
 
         exists = lambda res: CassandraStorageDriver._block_exists(
@@ -666,7 +732,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             limit=self._determine_limit(limit)
         )
 
-        res = self._session.execute(CQL_GET_ALL_BLOCKS, args)
+        query = self.simplestatement(CQL_GET_ALL_BLOCKS,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         return [row[0] for row in res]
 
@@ -681,13 +749,16 @@ class CassandraStorageDriver(MetadataStorageDriver):
         )
 
         if marker is None:
-            query = CQL_GET_ALL_FILES
+            # query = CQL_GET_ALL_FILES
+            query = self.simplestatement(CQL_GET_ALL_FILES,
+                consistency_level=self.consistency_level)
         else:
             args.update(dict(
                 marker=uuid.UUID(marker)
             ))
-
-            query = CQL_GET_ALL_FILES_MARKER
+            query = self.simplestatement(CQL_GET_ALL_FILES_MARKER,
+                consistency_level=self.consistency_level)
+            # query = CQL_GET_ALL_FILES_MARKER
 
         res = self._session.execute(query, args)
 
@@ -703,7 +774,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
         )
 
         if limit is None:
-            query = CQL_GET_ALL_FILE_BLOCKS
+            # query = CQL_GET_ALL_FILE_BLOCKS
+            query = self.simplestatement(CQL_GET_ALL_FILE_BLOCKS,
+                consistency_level=self.consistency_level)
         else:
 
             args.update(dict(
@@ -711,7 +784,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 limit=self._determine_limit(limit)
             ))
 
-            query = CQL_GET_FILE_BLOCKS
+            # query = CQL_GET_FILE_BLOCKS
+            query = self.simplestatement(CQL_GET_FILE_BLOCKS,
+                consistency_level=self.consistency_level)
 
         query_res = self._session.execute(query, args)
 
@@ -725,6 +800,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
         # will probably not be allowed in the future, but for now we allow
         # this to be compatible with the other drivers.
         futures = []
+        query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+            consistency_level=self.consistency_level)
+
         for block_id, blocksize, offset in zip(block_ids, blocksizes,
                                                offsets):
             args = dict(
@@ -736,7 +814,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 offset=offset
             )
 
-            future = self._session.execute_async(CQL_ASSIGN_BLOCK_TO_FILE,
+            future = self._session.execute_async(query,
                                                  args)
             futures.append(future)
 
@@ -760,7 +838,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             offset=offset
         )
 
-        self._session.execute(CQL_ASSIGN_BLOCK_TO_FILE, args)
+        query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
         self._inc_block_ref_count(vault_id, block_id)
 
     def register_block(self, vault_id, block_id, storage_id, blocksize):
@@ -775,7 +855,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 blocksize=int(blocksize)
             )
 
-            res = self._session.execute(CQL_REGISTER_BLOCK, args)
+            query = self.simplestatement(CQL_REGISTER_BLOCK,
+                consistency_level=self.consistency_level)
+            res = self._session.execute(query, args)
 
     def unregister_block(self, vault_id, block_id):
 
@@ -787,7 +869,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_UNREGISTER_BLOCK, args)
+        query = self.simplestatement(CQL_UNREGISTER_BLOCK,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         self._del_block_ref_count(vault_id, block_id)
 
@@ -799,7 +883,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_REF_COUNT, args)
+        query = self.simplestatement(CQL_GET_BLOCK_REF_COUNT,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             return res[0][0]
@@ -809,6 +895,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
     def _inc_block_ref_counts(self, vault_id, block_ids, cnt=1):
 
         futures = []
+        inc_ref_count_query = self.simplestatement(CQL_INC_BLOCK_REF_COUNT,
+            consistency_level=self.consistency_level)
+
         for block_id in block_ids:
             args = dict(
                 projectid=deuce.context.project_id,
@@ -817,7 +906,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 delta=cnt
             )
 
-            future = self._session.execute_async(CQL_INC_BLOCK_REF_COUNT, args)
+            future = self._session.execute_async(inc_ref_count_query, args)
             futures.append(future)
 
         for future in futures:
@@ -834,6 +923,8 @@ class CassandraStorageDriver(MetadataStorageDriver):
         missing_block_ids = self.has_blocks(vault_id, block_ids)
         update_block_ids = set(block_ids) - set(missing_block_ids)
         futures = []
+        update_reftime_query = self.simplestatement(CQL_UPDATE_REF_TIME,
+            consistency_level=self.consistency_level)
         for block_id in update_block_ids:
 
             reftime_args = dict(
@@ -842,7 +933,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 blockid=block_id,
                 reftime=int(datetime.datetime.utcnow().timestamp())
             )
-            future = self._session.execute_async(CQL_UPDATE_REF_TIME,
+            future = self._session.execute_async(update_reftime_query,
                                                  reftime_args)
             futures.append(future)
 
@@ -858,7 +949,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             delta=cnt
         )
 
-        self._session.execute(CQL_INC_BLOCK_REF_COUNT, args)
+        query = self.simplestatement(CQL_INC_BLOCK_REF_COUNT,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         # The Ref-time value is stored in the blocks table
         # if the block doesn't exist then the ref-time insertion
@@ -875,7 +968,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 blockid=block_id,
                 reftime=int(datetime.datetime.utcnow().timestamp())
             )
-            self._session.execute(CQL_UPDATE_REF_TIME, reftime_args)
+            query = self.simplestatement(CQL_UPDATE_REF_TIME,
+                consistency_level=self.consistency_level)
+            res = self._session.execute(query, reftime_args)
 
     def _del_block_ref_count(self, vault_id, block_id):
 
@@ -885,7 +980,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        self._session.execute(CQL_DEL_BLOCK_REF_COUNT, args)
+        query = self.simplestatement(CQL_DEL_BLOCK_REF_COUNT,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
     def get_block_ref_modified(self, vault_id, block_id):
 
@@ -895,7 +992,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
             blockid=block_id
         )
 
-        res = self._session.execute(CQL_GET_BLOCK_REF_TIME, args)
+        query = self.simplestatement(CQL_GET_BLOCK_REF_TIME,
+            consistency_level=self.consistency_level)
+        res = self._session.execute(query, args)
 
         try:
             return res[0][0]
@@ -905,7 +1004,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
     def get_health(self):
         try:
             args = ()
-            res = self._session.execute(CQL_HEALTH_CHECK, args)
+            query = self.simplestatement(CQL_HEALTH_CHECK,
+                consistency_level=self.consistency_level)
+            res = self._session.execute(query, args)
             return ["cassandra cluster: [{0}] is active".format(res[0][0])]
         except:  # pragma: no cover
             return ["cassandra is not active."]

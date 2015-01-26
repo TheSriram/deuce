@@ -603,7 +603,7 @@ class SqliteStorageDriver(MetadataStorageDriver):
 
         return row
 
-    def mark_block_as_bad(self, vault_id, block_id, check_status=False):
+    def mark_block_as_bad(self, vault_id, block_id,):
         args = {
             'projectid': deuce.context.project_id,
             'vaultid': vault_id,

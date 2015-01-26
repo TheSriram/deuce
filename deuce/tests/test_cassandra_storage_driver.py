@@ -13,14 +13,17 @@ import unittest
 # against the Cassandra driver. The sqlite tests simply exercise the
 # interface.
 
+cassandra_mock = conf.metadata_driver.cassandra.testing.is_mocking
+ssl_enabled = conf.metadata_driver.cassandra.ssl_enabled
+
 
 class CassandraStorageDriverTest(SqliteStorageDriverTest):
 
     def create_driver(self):
         return CassandraStorageDriver()
 
-    @unittest.skipIf(conf.metadata_driver.cassandra.testing.is_mocking is False
-       and conf.metadata_driver.cassandra.ssl_enabled is False,
+    @unittest.skipIf(cassandra_mock is False
+       and ssl_enabled is False,
        "Don't run the test if we are running without SSL")
     def test_create_driver_auth_ssl(self):
         with patch.object(conf.metadata_driver.cassandra, 'ssl_enabled',
@@ -28,3 +31,10 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
             with patch.object(conf.metadata_driver.cassandra, 'auth_enabled',
                               return_value=True):
                 return CassandraStorageDriver()
+
+    @unittest.skipIf(cassandra_mock is False,
+    "Dont run the test if we are against non-mocked Cassandra")
+    def test_create_driver_consistency_from_conf(self):
+        contact_points = ['127.0.0.1', '127.0.0.2', '127.0.0.3']
+        conf.metadata_driver.cassandra.cluster = contact_points
+        return CassandraStorageDriver()
