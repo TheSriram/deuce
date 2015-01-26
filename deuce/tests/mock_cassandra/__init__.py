@@ -28,7 +28,8 @@ class Future(object):
         self._result = result
 
     def result(self):
-        return [element for element in self._result]
+
+        return [element for element in self._result] if self._result else []
 
 
 class Session(object):
@@ -104,6 +105,16 @@ class Session(object):
             upsert_args = queryargs.copy()
             self.conn.execute(upsert_query, upsert_args)
 
+        elif original_query == actual_driver.CQL_REGISTER_FILE_TO_BLOCK:
+
+            upsert_query = """
+                INSERT or REPLACE INTO blockfiles
+                (projectid, vaultid, fileid, blockid)
+                VALUES (:projectid, :vaultid, :fileid, :blockid)
+            """
+            upsert_args = queryargs.copy()
+            self.conn.execute(upsert_query, upsert_args)
+
         elif original_query == actual_driver.CQL_UPDATE_REF_TIME or \
                 original_query == actual_driver.CQL_REGISTER_BLOCK:
 
@@ -117,22 +128,10 @@ class Session(object):
             # So the following gives us the same query as the original
             query = "SELECT strftime('%s', 'now')"
 
-
-        if not original_query == actual_driver.CQL_REGISTER_BLOCK:
+        if original_query not in [actual_driver.CQL_REGISTER_BLOCK,
+                                  actual_driver.CQL_REGISTER_FILE_TO_BLOCK]:
             res = self.conn.execute(query, queryargs)
             res = list(res)
-
-        elif original_query == actual_driver.CQL_REGISTER_FILE_TO_BLOCK:
-
-            query = """
-                INSERT or REPLACE INTO blockfiles
-                (projectid, vaultid, fileid, blockid)
-                VALUES (:projectid, :vaultid, :fileid, :blockid)
-            """
-
-        res = self.conn.execute(query, queryargs)
-        res = list(res)
-
 
         if original_query == actual_driver.CQL_GET_BLOCK_STATUS:
             # Special-case the return value of this query. Returns
