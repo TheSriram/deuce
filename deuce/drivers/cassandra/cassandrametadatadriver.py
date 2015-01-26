@@ -406,6 +406,10 @@ class CassandraStorageDriver(MetadataStorageDriver):
         res['blocks'] = {}
         res['blocks']['count'] = __stats_get_vault_block_count()
 
+        # Add information about bad blocks and bad files
+
+        res['blocks']['bad'], res['files']['bad'] = \
+            self.vault_health(vault_id)
         # Add any statistics specific to the Cassandra backend
         res['internal'] = {}
 

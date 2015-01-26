@@ -44,16 +44,29 @@ class SqliteStorageDriverTest(V1Base):
         fileid = self.create_file_id()
         driver.create_file(vault_id, fileid)
 
-        for _ in range(3):
-            block_id = self.create_block_id()
+        block_ids = [self.create_block_id() for _ in range(3)]
+
+        for block_id in block_ids:
             storage_id = self.create_storage_block_id()
             blocksize = random.randrange(0, 100)
             driver.register_block(vault_id, block_id, storage_id, blocksize)
+
+        stats = driver.get_vault_statistics(vault_id)
+
+        self.assertEqual(stats['blocks']['count'], 3)
+        self.assertEqual(stats['files']['count'], 1)
+        self.assertEqual(stats['blocks']['bad'], 0)
+        self.assertEqual(stats['files']['bad'], 0)
+
+        for block_id in block_ids:
+            driver.mark_block_as_bad(vault_id, block_id)
 
         new_stats = driver.get_vault_statistics(vault_id)
 
         self.assertEqual(new_stats['blocks']['count'], 3)
         self.assertEqual(new_stats['files']['count'], 1)
+        self.assertEqual(new_stats['blocks']['bad'], 3)
+        self.assertEqual(new_stats['files']['bad'], 0)
 
     def test_db_health(self):
         driver = self.create_driver()

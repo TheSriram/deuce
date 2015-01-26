@@ -100,17 +100,21 @@ class MongoDbStorageDriver(MetadataStorageDriver):
             else:
                 return result.count()
 
-        # TODO: Add any statistics regarding files
+        # Add any statistics regarding files
         res['files'] = {}
         res['files']['count'] = __stats_get_vault_file_count()
 
-        # TODO: Add any statistics regarding blocks
+        # Add any statistics regarding blocks
         res['blocks'] = {}
         res['blocks']['count'] = __stats_get_vault_block_count()
 
-        # TODO: Add any statistics specific to the MongoDB backend
+        # Add information about bad blocks and bad files
+
+        res['blocks']['bad'], res['files']['bad'] = \
+            self.vault_health(vault_id)
+
+        # Add any statistics specific to the Mongo backend
         res['internal'] = {}
-        # res['internal']
 
         return res
 
