@@ -226,7 +226,7 @@ class DiskStorageDriverTest(V1Base):
         for x in range(0, len(fetched_data)):
             blocks[x].seek(0)
             storage_id, obj = fetched_data[x]
-            assert obj.read() == blocks[x].read()
+            self.assertEqual(obj.read(), blocks[x].read())
 
         # Clenaup.
         for storage_id in storage_ids[:]:

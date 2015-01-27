@@ -107,11 +107,11 @@ class ItemResource(object):
         # object instead of an iterator.
 
         def premature_close(storage_id):
-            msg = '[{0}/{1}/{2}/{3}] is missing ' \
-                  'from storage backend'.format(deuce.context.project_id,
-                                                vault_id,
-                                                file_id,
-                                                storage_id)
+            msg = '[{0}/{1}/{2}] is missing data' \
+                  'for storage block {3}'.format(deuce.context.project_id,
+                                                 vault_id,
+                                                 file_id,
+                                                 storage_id)
             logger.error(msg)
             raise StopIteration(msg)
 
