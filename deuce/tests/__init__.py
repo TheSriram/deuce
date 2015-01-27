@@ -67,7 +67,7 @@ class TestBase(unittest.TestCase):
         # This is required for environments that run multiple tests
         # at the same time, e.g. tox -e py34 in one shell and
         # tox -e py33 in another shell simultaneously, f.e Jenkins
-        deuce.conf.block_storage_driver.options.path = \
+        deuce.conf.block_storage_driver.disk.path = \
             test_disk_storage_location
 
         self.app = Driver().app
