@@ -106,11 +106,17 @@ class ItemResource(object):
         # we should be able to set resp.stream to any file like
         # object instead of an iterator.
 
-        def premature_close():
-            raise StopIteration
+        def premature_close(storage_id):
+            msg = '[{0}/{1}/{2}/{3}] is missing ' \
+                  'from storage backend'.format(deuce.context.project_id,
+                                                vault_id,
+                                                file_id,
+                                                storage_id)
+            logger.error(msg)
+            raise StopIteration(msg)
 
-        resp.stream = (obj.read() if obj else premature_close()
-                       for obj in objs)
+        resp.stream = (obj.read() if obj else premature_close(storageid)
+                       for (storageid, obj) in objs)
         resp.status = falcon.HTTP_200
         resp.set_header('Content-Length', str(vault.get_file_length(file_id)))
         resp.content_type = 'application/octet-stream'

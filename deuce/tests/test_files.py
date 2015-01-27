@@ -142,7 +142,8 @@ class TestFiles(ControllerTest):
     def test_get_corrupt_file(self):
 
         enough_num = 10
-        bad_file_gen = (None for _ in range(enough_num))
+        bad_file_gen = ((self.create_storage_block_id(), None)
+                        for _ in range(enough_num))
 
         with patch.object(Vault, 'get_blocks_generator',
                           return_value=bad_file_gen):
