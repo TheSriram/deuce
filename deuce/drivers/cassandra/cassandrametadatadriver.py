@@ -193,6 +193,7 @@ CQL_GET_BLOCK_SIZE = '''
     WHERE projectid = %(projectid)s
     AND vaultid = %(vaultid)s
     AND blockid = %(blockid)s
+    AND isinvalid = false
 '''
 
 CQL_GET_BLOCK_REF_COUNT = '''
@@ -844,7 +845,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
         self._inc_block_ref_count(vault_id, block_id)
 
     def register_block(self, vault_id, block_id, storage_id, blocksize):
-        if not self.has_block(vault_id, block_id):
+        if not self.has_block(vault_id, block_id, check_status=True):
             args = dict(
                 projectid=deuce.context.project_id,
                 vaultid=vault_id,
@@ -920,7 +921,8 @@ class CassandraStorageDriver(MetadataStorageDriver):
         # Note: the block registration will automatically insert the
         # ref-time as well.
 
-        missing_block_ids = self.has_blocks(vault_id, block_ids)
+        missing_block_ids = self.has_blocks(vault_id, block_ids,
+                                            check_status=True)
         update_block_ids = set(block_ids) - set(missing_block_ids)
         futures = []
         update_reftime_query = self.simplestatement(CQL_UPDATE_REF_TIME,
@@ -961,7 +963,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
         #
         # Note: the block registration will automatically insert the
         # ref-time as well.
-        if self.has_block(vault_id, block_id):
+        if self.has_block(vault_id, block_id, check_status=True):
             reftime_args = dict(
                 projectid=deuce.context.project_id,
                 vaultid=vault_id,

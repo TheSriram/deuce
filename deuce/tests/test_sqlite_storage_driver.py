@@ -735,15 +735,76 @@ class SqliteStorageDriverTest(V1Base):
             self.assertEqual(driver.has_block(vault_id, bid,
                 check_status=True), bid not in bad_block_ids)
 
-            # Ensure that we did not erase other information
-            # about the block such as the block size (this is
-            # mos likely in Cassandra)
+        # Ensure that we did not erase other information
+        # about the block such as the block size for good blocks
+        # (this is most likely in Cassandra)
+
+        for bid in list(set(block_ids) - set(bad_block_ids)):
             self.assertEqual(driver.get_block_data(vault_id, bid)['blocksize'],
                              1024)
+
+        for bid in bad_block_ids:
+            with self.assertRaises(Exception):
+                data = driver.get_block_data(vault_id, bid)['blocksize']
 
         self.assertEqual(
             sorted(driver.has_blocks(vault_id, block_ids, check_status=True)),
             sorted(bad_block_ids))
+
+    def test_assign_bad_blocks(self):
+        driver = self.create_driver()
+        vault_id = self.create_vault_id()
+        file_id = self.create_file_id()
+        num_blocks = 50
+
+        bad_block_ids = ['block_{0}'.format(id) for id in range(0, num_blocks)]
+
+        for bid in bad_block_ids:
+            driver.register_block(vault_id, bid,
+                self._genstorageid(bid), 1024)
+
+        # None of the blocks are bad so
+        # the list returned should be empty
+        self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
+            check_status=True), [])
+
+        # Let's mark all the blocks to be bad
+        for bid in bad_block_ids:
+            driver.mark_block_as_bad(vault_id, bid)
+
+        driver.create_file(vault_id, file_id)
+        offsets = []
+
+        for i in range(len(bad_block_ids)):
+            offsets.append(i * 1024)
+
+        # Now Let's try assign all the bad blocks to a file
+        driver.assign_blocks(vault_id,
+                             file_id,
+                             bad_block_ids,
+                             offsets)
+        # GapError is raised, because bad blocks behave like
+        # non-existent blocks
+        with self.assertRaises(GapError):
+            driver.finalize_file(vault_id,
+                                 file_id,
+                                 1024 * len(bad_block_ids))
+
+        # Now, we go and re-register all the blocks, this should
+        # switch the isinvalid flag, and make the blocks valid again
+        # ergo, the blocks have now been healed, by being reuploaded.
+        for bid in bad_block_ids:
+            driver.register_block(vault_id, bid,
+                self._genstorageid(bid), 1024)
+
+        # Check if blocks are valid again
+        self.assertEqual(driver.has_blocks(vault_id, bad_block_ids,
+            check_status=True), [])
+
+        # Finalize file with valid blocks
+        driver.finalize_file(vault_id,
+                             file_id,
+                             1024 * len(bad_block_ids))
 
     def test_file_block_generator_marker_limit(self):
         driver = self.create_driver()
