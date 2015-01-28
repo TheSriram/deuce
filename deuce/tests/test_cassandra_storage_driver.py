@@ -1,10 +1,12 @@
+import importlib
+import unittest
+
+import ddt
+from mock import patch, MagicMock
+
 from deuce.drivers.cassandra import CassandraStorageDriver
 from deuce.tests.test_sqlite_storage_driver import SqliteStorageDriverTest
 from deuce import conf
-
-from mock import patch
-
-import unittest
 
 # Explanation:
 #   - The SqliteStorageDriver is the reference metadata driver. All
@@ -17,6 +19,7 @@ cassandra_mock = conf.metadata_driver.cassandra.testing.is_mocking
 ssl_enabled = conf.metadata_driver.cassandra.ssl_enabled
 
 
+@ddt.ddt
 class CassandraStorageDriverTest(SqliteStorageDriverTest):
 
     def create_driver(self):
@@ -32,9 +35,24 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
                               return_value=True):
                 return CassandraStorageDriver()
 
-    @unittest.skipIf(cassandra_mock is False,
-    "Dont run the test if we are against non-mocked Cassandra")
-    def test_create_driver_consistency_from_conf(self):
-        contact_points = ['127.0.0.1', '127.0.0.2', '127.0.0.3']
-        conf.metadata_driver.cassandra.cluster = contact_points
-        return CassandraStorageDriver()
+    @ddt.data(['127.0.0.1', '127.0.0.2', '127.0.0.3'], ['127.0.0.1'])
+    def test_create_driver_mocked_consistency(self, contact_points):
+        cassandra_driver = importlib.import_module(
+            conf.metadata_driver.cassandra.db_module)
+        cassandra_auth = importlib.import_module(
+            '{0}.auth'.format(conf.metadata_driver.cassandra.db_module))
+        cassandra_query = importlib.import_module(
+            '{0}.query'.format(conf.metadata_driver.cassandra.db_module))
+        with patch('importlib.import_module') as mock_importlib:
+            mock_importlib.side_effect = [
+                cassandra_driver,
+                MagicMock(),
+                cassandra_auth,
+                cassandra_query
+            ]
+            mock_importlib.return_value[1].connect = MagicMock()
+
+            conf.metadata_driver.cassandra.cluster = contact_points
+            # with patch.object(cluster_module.Cluster, 'connect') as mock_it:
+            # mock_it.return_value = None
+            return CassandraStorageDriver()

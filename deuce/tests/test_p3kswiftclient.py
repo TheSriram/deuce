@@ -234,20 +234,20 @@ class Test_P3k_SwiftClient(V1Base):
                               'mock'))
 
     def test_get_object(self):
-        file = MockFile(10)
-        r = Response(200, file)
+        mock_file = MockFile(10)
+        r = Response(200, mock_file)
         fut1 = asyncio.Future(loop=None)
         fut1.set_result(r)
         p3k_swiftclient.aiohttp.request = mock.Mock(return_value=fut1)
 
-        response = p3k_swiftclient.get_object(
+        response, block = p3k_swiftclient.get_object(
             self.storage_url,
             self.token,
             self.vault,
             self.block,
             self.response_dict)
-        self.assertEqual(file, response[0])
-        self.assertEqual(r.headers, response[1].headers)
+        self.assertEqual(r, response)
+        self.assertEqual(mock_file, block)
 
     def test_delete_object(self):
         r = Response(204)
