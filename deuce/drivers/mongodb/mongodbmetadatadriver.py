@@ -381,6 +381,35 @@ class MongoDbStorageDriver(MetadataStorageDriver):
         else:
             return result is not None
 
+    def reset_block_status(self, vault_id, marker=None, limit=None):
+
+        def mark_block_as_good(vault_id, block_id):
+            args = {
+                'projectid': deuce.context.project_id, 'vaultid': vault_id,
+                'blockid': str(block_id)
+            }
+
+            update_args = {
+                '$set': {
+                    'isinvalid': False
+                }
+            }
+
+            self._blocks.update(args, update_args, upsert=False)
+
+        blocks = self.create_block_generator(vault_id, marker,
+                                             self._determine_limit(limit))
+
+        for block in blocks:
+            mark_block_as_good(vault_id, block)
+
+        if len(blocks) != self._determine_limit(limit):
+            return
+        else:
+            self.reset_block_status(vault_id,
+                                    marker=blocks[-1:][0],
+                                    limit=self._determine_limit(limit))
+
     def has_block(self, vault_id, block_id, check_status=False):
         # Query BLOCKS for the block
         self._blocks.ensure_index([('projectid', 1),

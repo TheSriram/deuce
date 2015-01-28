@@ -31,6 +31,13 @@ class Future(object):
 
         return [element for element in self._result] if self._result else []
 
+    def add_callbacks(self, callback=None, errback=None, callback_args=(),
+                      callback_kwargs={}):
+        try:
+            callback(self.result(), **callback_kwargs)
+        except Exception as ex:
+            errback(ex)
+
 
 class Session(object):
 

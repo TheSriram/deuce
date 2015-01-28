@@ -204,6 +204,12 @@ class MetadataStorageDriver(object):
         raise NotImplementedError
 
     @abstractmethod
+    def reset_block_status(self, vault_id, marker=None, limit=None):
+        """Marks the blocks for a given vault in the metadata driver
+        as good blocks."""
+        raise NotImplementedError
+
+    @abstractmethod
     def has_block(self, vault_id, block_id, check_status=False):
         """Determines if the vault has the specified block.
 

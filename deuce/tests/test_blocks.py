@@ -192,6 +192,16 @@ class TestBlocksController(ControllerTest):
                                       body=request_body)
         self.assertEqual(self.srmock.status, falcon.HTTP_412)
 
+    def test_reset_block_status(self):
+        path = self.get_blocks_path(self.vault_name)
+
+        invalid_path = self.get_blocks_path('bogus_vault')
+        response = self.simulate_patch(invalid_path, headers=self._hdrs)
+        self.assertEqual(self.srmock.status, falcon.HTTP_404)
+
+        response = self.simulate_patch(path, headers=self._hdrs)
+        self.assertEqual(self.srmock.status, falcon.HTTP_204)
+
     def test_post_invalid_request_body(self):
         path = self.get_blocks_path(self.vault_name)
 

@@ -1,4 +1,3 @@
-
 import importlib
 import datetime
 import six
@@ -9,9 +8,11 @@ from deuce.drivers.metadatadriver import MetadataStorageDriver
 from deuce.drivers.metadatadriver import GapError, OverlapError
 from deuce.drivers.metadatadriver import ConstraintError
 from deuce import conf
-
+import deuce.util.log as logging
 import deuce
 
+
+logger = logging.getLogger(__name__)
 
 CQL_CREATE_VAULT = '''
     INSERT INTO vaults (projectid, vaultid)
@@ -41,6 +42,15 @@ CQL_CREATE_FILE = '''
 CQL_MARK_BLOCK_AS_BAD = '''
     UPDATE blocks SET
     isinvalid = true
+    WHERE
+    projectid = %(projectid)s AND
+    vaultid = %(vaultid)s AND
+    blockid = %(blockid)s
+'''
+
+CQL_MARK_BLOCK_AS_GOOD = '''
+    UPDATE blocks SET
+    isinvalid = false
     WHERE
     projectid = %(projectid)s AND
     vaultid = %(vaultid)s AND
@@ -745,6 +755,58 @@ class CassandraStorageDriver(MetadataStorageDriver):
             raise Exception("No such file: {0}".format(file_id))
 
         return row
+
+    def reset_block_status(self, vault_id, marker=None, limit=None):
+
+        def mark_block_as_good(results, projectid, limit):
+
+            def on_result(results, vaultid, projectid, blockid):
+                logger.debug('block {0} marked as valid '
+                             'under [{1}/{2}]'.format(blockid,
+                                                      projectid,
+                                                      vault_id))
+
+            block_ids = [row[0] for row in results]
+
+            for blockid in block_ids:
+
+                query = self.simplestatement(CQL_MARK_BLOCK_AS_GOOD,
+                    consistency_level=self.consistency_level)
+                args = dict(
+                    projectid=projectid,
+                    vaultid=vault_id,
+                    blockid=blockid
+                )
+
+                future = self._session.execute_async(query, args)
+                future.add_callbacks(callback=on_result, errback=on_exception,
+                                     callback_kwargs={'vaultid': vault_id,
+                                                      'projectid': projectid,
+                                                      'blockid': blockid})
+
+            if len(block_ids) != limit:
+                return
+            else:
+                self.reset_block_status(vault_id, block_ids[-1:][0], limit)
+
+        def on_exception(errors):
+            logger.error(errors)
+
+        args = dict(
+            projectid=deuce.context.project_id,
+            vaultid=vault_id,
+            marker=marker or '',
+            limit=self._determine_limit(limit)
+        )
+
+        query = self.simplestatement(CQL_GET_ALL_BLOCKS,
+            consistency_level=self.consistency_level)
+        future = self._session.execute_async(query, args)
+
+        future.add_callbacks(callback=mark_block_as_good,
+            callback_kwargs={'limit': self._determine_limit(limit),
+                             'projectid': deuce.context.project_id},
+            errback=on_exception)
 
     def mark_block_as_bad(self, vault_id, block_id):
 

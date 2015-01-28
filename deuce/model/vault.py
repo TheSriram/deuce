@@ -2,6 +2,7 @@ from deuce.model.block import Block
 from deuce.model.file import File
 from deuce.model.exceptions import ConsistencyError
 from deuce.util import log as logging
+from deuce import conf
 
 import deuce
 import uuid
@@ -140,6 +141,11 @@ class Vault(object):
             return True
         else:
             return False
+
+    def reset_block_status(self):
+        deuce.metadata_driver.reset_block_status(self.id,
+            marker=None,
+            limit=None)
 
     def _storage_has_block(self, block_id):
         return deuce.storage_driver.block_exists(self.id,

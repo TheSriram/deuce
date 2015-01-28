@@ -286,3 +286,15 @@ class CollectionResource(object):
 
         resp.body = json.dumps([response.metadata_block_id
                                 for response in responses])
+
+    @validate(vault_id=VaultGetRule)
+    def on_patch(self, req, resp, vault_id):
+
+        vault = Vault.get(vault_id)
+        if not vault:
+            logger.error('Vault [{0}] does not exist'.format(vault_id))
+            raise errors.HTTPNotFound
+
+        vault.reset_block_status()
+
+        resp.status = falcon.HTTP_204
