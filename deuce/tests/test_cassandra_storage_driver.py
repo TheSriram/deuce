@@ -55,6 +55,7 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
             ]
             # override the connect method so it doesn't actually do anything
             mock_importlib.return_value[1].connect = MagicMock()
+            mock_importlib.return_value[1].contact_points = contact_points
 
             conf.metadata_driver.cassandra.cluster = contact_points
             return CassandraStorageDriver()
