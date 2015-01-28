@@ -37,12 +37,15 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
 
     @ddt.data(['127.0.0.1', '127.0.0.2', '127.0.0.3'], ['127.0.0.1'])
     def test_create_driver_mocked_consistency(self, contact_points):
+        # We want the actual imports for 3 of the 4 imports
         cassandra_driver = importlib.import_module(
             conf.metadata_driver.cassandra.db_module)
         cassandra_auth = importlib.import_module(
             '{0}.auth'.format(conf.metadata_driver.cassandra.db_module))
         cassandra_query = importlib.import_module(
             '{0}.query'.format(conf.metadata_driver.cassandra.db_module))
+
+        # Mock importlib so we can control the cassandra cluster import
         with patch('importlib.import_module') as mock_importlib:
             mock_importlib.side_effect = [
                 cassandra_driver,
@@ -50,9 +53,8 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
                 cassandra_auth,
                 cassandra_query
             ]
+            # override the connect method so it doesn't actually do anything
             mock_importlib.return_value[1].connect = MagicMock()
 
             conf.metadata_driver.cassandra.cluster = contact_points
-            # with patch.object(cluster_module.Cluster, 'connect') as mock_it:
-            # mock_it.return_value = None
             return CassandraStorageDriver()
