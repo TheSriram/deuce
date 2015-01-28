@@ -35,6 +35,17 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
                               return_value=True):
                 return CassandraStorageDriver()
 
+    # (BenjamenMeyer) Covers the contact_point switching when
+    # the ~/.deuce/config.ini is not available
+    @unittest.skipIf(cassandra_mock is False,
+    "Dont run the test if we are against non-mocked Cassandra")
+    def test_create_driver_consistency_from_conf(self):
+        contact_points = ['127.0.0.1', '127.0.0.2', '127.0.0.3']
+        conf.metadata_driver.cassandra.cluster = contact_points
+        return CassandraStorageDriver()
+
+    # (BenjamenMeyer) Covers the contact_point switching when
+    # the ~/.deuce/config.ini is available
     @ddt.data(['127.0.0.1', '127.0.0.2', '127.0.0.3'], ['127.0.0.1'])
     def test_create_driver_mocked_consistency(self, contact_points):
         # We want the actual imports for 3 of the 4 imports
