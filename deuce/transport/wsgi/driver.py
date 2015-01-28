@@ -19,25 +19,20 @@ class Driver(object):
         self._init_routes()
         model.init_model()
 
-    def before_hooks(self, req, resp, params):
+    def before_hooks(self):
 
-        # Disk + Sqlite
-
-        return [
-            hooks.DeuceContextHook(req, resp, params),
-            hooks.TransactionidHook(req, resp, params),
-            hooks.ProjectidHook(req, resp, params)
+        hook_list = [
+            hooks.DeuceContextHook,
+            hooks.TransactionidHook,
+            hooks.ProjectidHook
         ]
 
-        # Swift
+        if conf.block_storage_driver.driver == 'swift':
+            # Swift
+            hook_list.append(hooks.OpenstackHook)
+            hook_list.append(hooks.OpenstackSwiftHook)
 
-        # return [
-        #     hooks.DeuceContextHook(req, resp, params),
-        #     hooks.TransactionidHook(req, resp, params),
-        #     hooks.ProjectidHook(req, resp, params),
-        #     hooks.OpenstackHook(req, resp, params),
-        #     hooks.OpenstackSwiftHook(req, resp, params)
-        # ]
+        return hook_list
 
     def _init_routes(self):
         """Initialize hooks and URI routes to resources."""
@@ -47,7 +42,7 @@ class Driver(object):
 
         ]
 
-        self.app = falcon.API(before=self.before_hooks)
+        self.app = falcon.API(before=self.before_hooks())
 
         for version_path, endpoints in endpoints:
             for route, resource in endpoints:
