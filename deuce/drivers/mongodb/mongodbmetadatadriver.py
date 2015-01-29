@@ -385,7 +385,8 @@ class MongoDbStorageDriver(MetadataStorageDriver):
 
         def mark_block_as_good(vault_id, block_id):
             args = {
-                'projectid': deuce.context.project_id, 'vaultid': vault_id,
+                'projectid': deuce.context.project_id,
+                'vaultid': vault_id,
                 'blockid': str(block_id)
             }
 

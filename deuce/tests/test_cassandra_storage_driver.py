@@ -5,7 +5,6 @@ import ddt
 from mock import patch, MagicMock
 
 from deuce.drivers.cassandra import CassandraStorageDriver
-from deuce.tests.mock_cassandra import Future
 from deuce.tests.test_sqlite_storage_driver import SqliteStorageDriverTest
 from deuce import conf
 
@@ -71,13 +70,3 @@ class CassandraStorageDriverTest(SqliteStorageDriverTest):
 
             conf.metadata_driver.cassandra.cluster = contact_points
             return CassandraStorageDriver()
-
-    @unittest.skipIf(cassandra_mock is False,
-    "Dont run the test if we are against non-mocked Cassandra")
-    def test_reset_block_exception(self):
-        driver = self.create_driver()
-        vault = self.create_vault_id()
-        driver.create_vault(vault)
-        with patch.object(Future, 'result', return_value=None):
-                driver.reset_block_status(vault)
-

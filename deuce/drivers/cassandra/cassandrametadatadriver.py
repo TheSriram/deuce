@@ -758,13 +758,14 @@ class CassandraStorageDriver(MetadataStorageDriver):
 
     def reset_block_status(self, vault_id, marker=None, limit=None):
 
-        def mark_block_as_good(results, projectid, limit):
+        # NOTE(TheSriram): This isnt the most performant version,
+        # but a start, this can be made to used callback chaining
+        # as referenced below:
+        # https://gist.github.com/TheSriram/7df3224166f2be46ac24
 
-            def on_result(results, vaultid, projectid, blockid):
-                logger.debug('block {0} marked as valid '
-                             'under [{1}/{2}]'.format(blockid,
-                                                      projectid,
-                                                      vault_id))
+        def mark_block_as_good(results, limit):
+
+            futures = []
 
             block_ids = [row[0] for row in results]
 
@@ -773,26 +774,23 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 query = self.simplestatement(CQL_MARK_BLOCK_AS_GOOD,
                     consistency_level=self.consistency_level)
                 args = dict(
-                    projectid=projectid,
+                    projectid=deuce.context.project_id,
                     vaultid=vault_id,
                     blockid=blockid
                 )
 
                 future = self._session.execute_async(query, args)
-                future.add_callbacks(callback=on_result, errback=on_exception,
-                                     callback_kwargs={'vaultid': vault_id,
-                                                      'projectid': projectid,
-                                                      'blockid': blockid})
+                futures.append(future)
+
+            for future in futures:
+                future.result()
 
             if len(block_ids) != limit:
                 return
             else:
                 self.reset_block_status(vault_id, block_ids[-1:][0], limit)
 
-        def on_exception(errors):
-            logger.error(errors)
-
-        args = dict(
+        query_args = dict(
             projectid=deuce.context.project_id,
             vaultid=vault_id,
             marker=marker or '',
@@ -801,12 +799,9 @@ class CassandraStorageDriver(MetadataStorageDriver):
 
         query = self.simplestatement(CQL_GET_ALL_BLOCKS,
             consistency_level=self.consistency_level)
-        future = self._session.execute_async(query, args)
+        future = self._session.execute_async(query, query_args)
 
-        future.add_callbacks(callback=mark_block_as_good,
-            callback_kwargs={'limit': self._determine_limit(limit),
-                             'projectid': deuce.context.project_id},
-            errback=on_exception)
+        mark_block_as_good(future.result(), self._determine_limit(limit))
 
     def mark_block_as_bad(self, vault_id, block_id):
 

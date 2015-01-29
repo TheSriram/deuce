@@ -828,7 +828,6 @@ class SqliteStorageDriverTest(V1Base):
             sorted(driver.has_blocks(vault_id, block_ids, check_status=True)),
             sorted(bad_block_ids))
 
-
     def test_assign_bad_blocks(self):
         driver = self.create_driver()
         vault_id = self.create_vault_id()
@@ -893,6 +892,9 @@ class SqliteStorageDriverTest(V1Base):
 
         block_ids = ['block_{0}'.format(id) for id in range(0, num_blocks)]
 
+        # Reset block status, when there are no blocks in the vault
+        driver.reset_block_status(vault_id)
+
         for bid in block_ids:
             driver.register_block(vault_id, bid,
                 self._genstorageid(bid), 1024)
@@ -910,7 +912,7 @@ class SqliteStorageDriverTest(V1Base):
         self.assertEqual(driver.has_blocks(vault_id, block_ids,
             check_status=True), [])
 
-        # reset block_status across the vault
+        # mark blocks as bad, across the vault
         for bid in block_ids:
             driver.mark_block_as_bad(vault_id, bid)
 
@@ -920,6 +922,7 @@ class SqliteStorageDriverTest(V1Base):
         self.assertEqual(driver.has_blocks(vault_id, block_ids,
             check_status=True), block_ids)
 
+        # reset block status, across the vault
         driver.reset_block_status(vault_id)
 
         # Now check has_blocks. None of the blocks are bad so
