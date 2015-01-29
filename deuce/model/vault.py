@@ -142,10 +142,18 @@ class Vault(object):
         else:
             return False
 
+    def reset_block_status_marker(self, marker):
+        return deuce.metadata_driver.reset_block_status(self.id,
+                marker=marker)
+
     def reset_block_status(self):
-        deuce.metadata_driver.reset_block_status(self.id,
-            marker=None,
-            limit=None)
+        marker = None
+        while True:
+            end_marker = self.reset_block_status_marker(marker)
+            if end_marker:
+                marker = end_marker
+            else:
+                break
 
     def _storage_has_block(self, block_id):
         return deuce.storage_driver.block_exists(self.id,

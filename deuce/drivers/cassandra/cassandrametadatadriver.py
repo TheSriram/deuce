@@ -785,10 +785,7 @@ class CassandraStorageDriver(MetadataStorageDriver):
             for future in futures:
                 future.result()
 
-            if len(block_ids) != limit:
-                return
-            else:
-                self.reset_block_status(vault_id, block_ids[-1:][0], limit)
+            return block_ids[-1:][0] if len(block_ids) == limit else None
 
         query_args = dict(
             projectid=deuce.context.project_id,
@@ -801,7 +798,8 @@ class CassandraStorageDriver(MetadataStorageDriver):
             consistency_level=self.consistency_level)
         future = self._session.execute_async(query, query_args)
 
-        mark_block_as_good(future.result(), self._determine_limit(limit))
+        return mark_block_as_good(future.result(),
+                                  self._determine_limit(limit))
 
     def mark_block_as_bad(self, vault_id, block_id):
 

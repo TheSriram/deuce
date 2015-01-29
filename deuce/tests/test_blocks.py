@@ -11,6 +11,7 @@ import msgpack
 from six.moves.urllib.parse import urlparse, parse_qs
 
 from deuce import conf
+from deuce.model import Vault
 from deuce.util.misc import set_qs, relative_uri
 from deuce.tests import ControllerTest
 
@@ -192,15 +193,29 @@ class TestBlocksController(ControllerTest):
                                       body=request_body)
         self.assertEqual(self.srmock.status, falcon.HTTP_412)
 
-    def test_reset_block_status(self):
+    def test_reset_block_status_non_existent_vault(self):
         path = self.get_blocks_path(self.vault_name)
 
         invalid_path = self.get_blocks_path('bogus_vault')
         response = self.simulate_patch(invalid_path, headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_404)
 
-        response = self.simulate_patch(path, headers=self._hdrs)
-        self.assertEqual(self.srmock.status, falcon.HTTP_204)
+    @ddt.data(50, 100)
+    def test_reset_block_status(self, num_blocks):
+
+        path = self.get_blocks_path(self.vault_name)
+        block_list = self.helper_create_blocks(num_blocks=num_blocks,
+                                               async=True)
+
+        with patch.object(Vault, '_storage_has_block', return_value=False):
+
+            for block in block_list:
+                block_path = self.get_block_path(self.vault_name, block)
+                response = self.simulate_head(block_path, headers=self._hdrs)
+                self.assertEqual(self.srmock.status, falcon.HTTP_410)
+
+            self.simulate_patch(path, headers=self._hdrs)
+            self.assertEqual(self.srmock.status, falcon.HTTP_204)
 
     def test_post_invalid_request_body(self):
         path = self.get_blocks_path(self.vault_name)

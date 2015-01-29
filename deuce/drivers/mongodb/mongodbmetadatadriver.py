@@ -404,12 +404,8 @@ class MongoDbStorageDriver(MetadataStorageDriver):
         for block in blocks:
             mark_block_as_good(vault_id, block)
 
-        if len(blocks) != self._determine_limit(limit):
-            return
-        else:
-            self.reset_block_status(vault_id,
-                                    marker=blocks[-1:][0],
-                                    limit=self._determine_limit(limit))
+        return blocks[-1:][0] if len(blocks) == \
+            self._determine_limit(limit) else None
 
     def has_block(self, vault_id, block_id, check_status=False):
         # Query BLOCKS for the block

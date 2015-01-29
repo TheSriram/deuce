@@ -892,8 +892,23 @@ class SqliteStorageDriverTest(V1Base):
 
         block_ids = ['block_{0}'.format(id) for id in range(0, num_blocks)]
 
+        def reset_block_status_marker(marker):
+            return driver.reset_block_status(vault_id,
+                    marker=marker)
+        # reset block status, across the vault
+
+        def reset_block_status():
+
+            marker = None
+            while True:
+                end_marker = reset_block_status_marker(marker)
+                if end_marker:
+                    marker = end_marker
+                else:
+                    break
+
         # Reset block status, when there are no blocks in the vault
-        driver.reset_block_status(vault_id)
+        reset_block_status()
 
         for bid in block_ids:
             driver.register_block(vault_id, bid,
@@ -922,8 +937,8 @@ class SqliteStorageDriverTest(V1Base):
         self.assertEqual(driver.has_blocks(vault_id, block_ids,
             check_status=True), block_ids)
 
-        # reset block status, across the vault
-        driver.reset_block_status(vault_id)
+        # Reset block status for all blocks under the given vault
+        reset_block_status()
 
         # Now check has_blocks. None of the blocks are bad so
         # the list returned should be empty
