@@ -128,6 +128,14 @@ class MetadataStorageDriver(object):
         raise NotImplementedError
 
     @abstractmethod
+    def vault_health(self, vault_id):
+        """Return the aggregate number of bad blocks and bad files
+        contained within the vault
+        :param vault_id: The ID of vault
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def create_file(self, vault_id, file_id):
         """Creates a representation of an empty file."""
         raise NotImplementedError

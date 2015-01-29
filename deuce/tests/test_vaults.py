@@ -130,6 +130,25 @@ class TestVaults(ControllerTest):
                                      headers=self._hdrs)
         self.assertEqual(self.srmock.status, falcon.HTTP_404)
 
+    def test_vault_health(self):
+
+        # Get health of non-existent vault
+        vault_health_path = '/v1.0/vaults/{0}/health'.format('vault_health')
+
+        response = self.simulate_get(vault_health_path, headers=self._hdrs)
+        self.assertEqual(self.srmock.status, falcon.HTTP_404)
+
+        self.helper_create_vault('vault_health', self._hdrs)
+
+        # Get health of existing vault
+        response = self.simulate_get(vault_health_path, headers=self._hdrs)
+        self.assertEqual(self.srmock.status, falcon.HTTP_200)
+        resp_body = json.loads(response[0].decode())
+
+        self.assertEqual(resp_body['Vault'], 'vault_health')
+        self.assertEqual(resp_body['Bad Blocks'], 0)
+        self.assertEqual(resp_body['Bad Files'], 0)
+
     def test_vault_deletion(self):
         # 1. Delete non-existent vault
         vault_name = self.create_vault_id()

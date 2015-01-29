@@ -42,8 +42,15 @@ CREATE TABLE fileblocks (
   offset INT,
   PRIMARY KEY(projectid, vaultid, fileid, offset)
 );
-""",
-"""
+""", """
+CREATE TABLE blockfiles (
+  projectid TEXT,
+  vaultid TEXT,
+  fileid TEXT,
+  blockid TEXT,
+  PRIMARY KEY(projectid, vaultid, fileid, blockid)
+);
+""", """
 CREATE TABLE blockreferences (
   projectid TEXT,
   vaultid TEXT,

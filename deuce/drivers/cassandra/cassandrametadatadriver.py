@@ -70,6 +70,22 @@ CQL_DELETE_FILE = '''
     AND fileid = %(fileid)s
 '''
 
+CQL_GET_BAD_BLOCKS = '''
+    SELECT blockid
+    FROM blocks
+    WHERE projectid = %(projectid)s
+    AND vaultid = %(vaultid)s
+    AND isinvalid = true
+'''
+
+CQL_GET_FILE_PER_BLOCK = '''
+    SELECT fileid
+    FROM blockfiles
+    WHERE projectid = %(projectid)s
+    AND vaultid = %(vaultid)s
+    AND blockid = %(blockid)s
+'''
+
 CQL_GET_ALL_FILE_BLOCKS = '''
     SELECT blockid, offset
     FROM fileblocks
@@ -171,9 +187,19 @@ CQL_ASSIGN_BLOCK_TO_FILE = '''
     INSERT INTO fileblocks
     (projectid, vaultid, fileid, blockid, blocksize, offset)
     VALUES (%(projectid)s, %(vaultid)s, %(fileid)s, %(blockid)s,
-      %(blocksize)s, %(offset)s)
+    %(blocksize)s, %(offset)s)
 '''
-
+CQL_REGISTER_FILE_TO_BLOCK = '''
+    INSERT INTO blockfiles
+    (projectid, vaultid, fileid, blockid)
+    VALUES (%(projectid)s, %(vaultid)s, %(fileid)s, %(blockid)s)
+'''
+CQL_UNREGISTER_FILE_TO_BLOCK = '''
+    DELETE FROM blockfiles
+    WHERE projectid=%(projectid)s
+    AND vaultid=%(vaultid)s
+    AND blockid=%(blockid)s
+'''
 CQL_REGISTER_BLOCK = '''
     INSERT INTO blocks
     (projectid, vaultid, blockid, storageid, blocksize, isinvalid, reftime)
@@ -380,10 +406,49 @@ class CassandraStorageDriver(MetadataStorageDriver):
         res['blocks'] = {}
         res['blocks']['count'] = __stats_get_vault_block_count()
 
+        # Add information about bad blocks and bad files
+
+        res['blocks']['bad'], res['files']['bad'] = \
+            self.vault_health(vault_id)
         # Add any statistics specific to the Cassandra backend
         res['internal'] = {}
 
         return res
+
+    def vault_health(self, vault_id):
+        '''Returns the number of bad blocks and bad files associated
+        with a vault'''
+
+        args = dict(
+            projectid=deuce.context.project_id,
+            vaultid=vault_id,
+        )
+
+        bad_blocks = self._session.execute(CQL_GET_BAD_BLOCKS, args)
+
+        no_of_bad_blocks = len(bad_blocks)
+
+        bad_files = set()
+        results = []
+
+        for block_id in bad_blocks:
+            args = dict(
+                projectid=deuce.context.project_id,
+                vaultid=vault_id,
+                blockid=block_id[0],
+            )
+            future = self._session.execute_async(CQL_GET_FILE_PER_BLOCK, args)
+            results.append(future)
+
+        for future in results:
+            try:
+                bad_files.add(future.result()[0][0])
+            except IndexError:
+                pass
+
+        no_of_bad_files = len(bad_files)
+
+        return (no_of_bad_blocks, no_of_bad_files)
 
     def create_file(self, vault_id, file_id):
         """Creates a new file with no blocks and no files"""
@@ -481,6 +546,26 @@ class CassandraStorageDriver(MetadataStorageDriver):
         except IndexError:
             return False
 
+    def _delete_files_from_blockfiles(self, vault_id, blockids):
+        futures = []
+
+        query = self.simplestatement(CQL_UNREGISTER_FILE_TO_BLOCK,
+            consistency_level=self.consistency_level)
+
+        for blockid in blockids:
+            args = dict(
+                projectid=deuce.context.project_id,
+                vaultid=vault_id,
+                blockid=blockid
+            )
+
+            future = self._session.execute_async(query,
+                                                 args)
+            futures.append(future)
+
+        for future in futures:
+            future.result()
+
     def delete_file(self, vault_id, file_id):
 
         args = dict(
@@ -493,14 +578,18 @@ class CassandraStorageDriver(MetadataStorageDriver):
             consistency_level=self.consistency_level)
         self._session.execute(query, args)
 
-        # now list the file blocks and decrement the block reference count
+        # now list the file blocks, delete the mapping from blocks to
+        # files and decrement the block reference count
+
         query = self.simplestatement(CQL_GET_ALL_FILE_BLOCKS_W_SIZE,
             consistency_level=self.consistency_level)
         res = self._session.execute(query, args)
 
-        self._inc_block_ref_counts(vault_id,
-                                   [data[0] for data in res],
-                                   -1)
+        block_ids = [data[0] for data in res]
+        self._delete_files_from_blockfiles(vault_id,
+                                           block_ids)
+
+        self._inc_block_ref_counts(vault_id, block_ids, -1)
 
     def finalize_file(self, vault_id, file_id, file_size=None):
         """Updates the files table to set a file to finalized. This function
@@ -801,7 +890,11 @@ class CassandraStorageDriver(MetadataStorageDriver):
         # will probably not be allowed in the future, but for now we allow
         # this to be compatible with the other drivers.
         futures = []
-        query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+
+        file_to_block_query = self.simplestatement(CQL_REGISTER_FILE_TO_BLOCK,
+            consistency_level=self.consistency_level)
+
+        block_to_file_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
             consistency_level=self.consistency_level)
 
         for block_id, blocksize, offset in zip(block_ids, blocksizes,
@@ -815,12 +908,25 @@ class CassandraStorageDriver(MetadataStorageDriver):
                 offset=offset
             )
 
-            future = self._session.execute_async(query,
-                                                 args)
-            futures.append(future)
+            fileblocks_future = self._session.execute_async(
+                block_to_file_query,
+                args)
+            futures.append(fileblocks_future)
+
+            blockfile_args = args.copy()
+
+            del blockfile_args['offset']
+            del blockfile_args['blocksize']
+
+            blockfiles_future = self._session.execute_async(
+                file_to_block_query,
+                blockfile_args)
+
+            futures.append(blockfiles_future)
 
         for future in futures:
             future.result()
+
         self._inc_block_ref_counts(vault_id, block_ids)
 
     def assign_block(self, vault_id, file_id, block_id, offset):
@@ -839,9 +945,19 @@ class CassandraStorageDriver(MetadataStorageDriver):
             offset=offset
         )
 
-        query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
+        block_to_file_query = self.simplestatement(CQL_ASSIGN_BLOCK_TO_FILE,
             consistency_level=self.consistency_level)
-        res = self._session.execute(query, args)
+        file_to_block_query = self.simplestatement(CQL_REGISTER_FILE_TO_BLOCK,
+            consistency_level=self.consistency_level)
+
+        blockfile_args = args.copy()
+
+        del blockfile_args['offset']
+        del blockfile_args['blocksize']
+
+        self._session.execute(block_to_file_query, args)
+        self._session.execute(file_to_block_query, blockfile_args)
+
         self._inc_block_ref_count(vault_id, block_id)
 
     def register_block(self, vault_id, block_id, storage_id, blocksize):

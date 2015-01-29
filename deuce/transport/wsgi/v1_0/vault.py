@@ -22,7 +22,8 @@ class ItemResource(object):
         vault = Vault.get(vault_id)
 
         if vault:
-            resp.body = json.dumps(vault.get_vault_statistics())
+            vault_stats = vault.get_vault_statistics()
+            resp.body = json.dumps(vault_stats)
             resp.status = falcon.HTTP_200
         else:
             logger.error('Vault [{0}] does not exist'.format(vault_id))

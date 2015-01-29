@@ -31,6 +31,10 @@ class SqliteStorageDriverTest(V1Base):
 
         vault_id = self.create_vault_id()
 
+        fileid = self.create_file_id()
+
+        num_blocks = 3
+
         # empty vault stats
         statistics = driver.get_vault_statistics(vault_id)
 
@@ -41,19 +45,39 @@ class SqliteStorageDriverTest(V1Base):
             self.assertIn('count', statistics[key].keys())
             self.assertEqual(statistics[key]['count'], 0)
 
-        fileid = self.create_file_id()
         driver.create_file(vault_id, fileid)
 
-        for _ in range(3):
-            block_id = self.create_block_id()
+        block_ids = [self.create_block_id() for _ in range(num_blocks)]
+
+        for block_id in block_ids:
             storage_id = self.create_storage_block_id()
-            blocksize = random.randrange(0, 100)
+            blocksize = 1024
             driver.register_block(vault_id, block_id, storage_id, blocksize)
+
+        stats = driver.get_vault_statistics(vault_id)
+
+        self.assertEqual(stats['blocks']['count'], 3)
+        self.assertEqual(stats['files']['count'], 1)
+        self.assertEqual(stats['blocks']['bad'], 0)
+        self.assertEqual(stats['files']['bad'], 0)
+
+        offsets = []
+
+        for i in range(num_blocks):
+            offsets.append(i * 1024)
+
+        driver.assign_blocks(vault_id, fileid, block_ids, offsets)
+        driver.finalize_file(vault_id, fileid, file_size=num_blocks * 1024)
+
+        for block_id in block_ids:
+            driver.mark_block_as_bad(vault_id, block_id)
 
         new_stats = driver.get_vault_statistics(vault_id)
 
         self.assertEqual(new_stats['blocks']['count'], 3)
         self.assertEqual(new_stats['files']['count'], 1)
+        self.assertEqual(new_stats['blocks']['bad'], 3)
+        self.assertEqual(new_stats['files']['bad'], 1)
 
     def test_db_health(self):
         driver = self.create_driver()
@@ -151,6 +175,58 @@ class SqliteStorageDriverTest(V1Base):
 
         self.assertFalse(driver.has_file(vault_id, file_id))
         self.assertFalse(driver.is_finalized(vault_id, file_id))
+
+    def test_vault_health_bad_blocks(self):
+        driver = self.create_driver()
+
+        vault_id = self.create_vault_id()
+        num_blocks = 10
+        block_ids = [self.create_block_id() for _ in range(num_blocks)]
+        size = 1024
+        for block_id in block_ids:
+            gen_storage_id = self._genstorageid(block_id)
+            driver.register_block(vault_id, block_id, gen_storage_id, size)
+
+        bad_blocks, bad_files = driver.vault_health(vault_id)
+        self.assertEqual(bad_blocks, 0)
+        self.assertEqual(bad_files, 0)
+
+        for block_id in block_ids:
+            driver.mark_block_as_bad(vault_id, block_id)
+
+        bad_blocks, bad_files = driver.vault_health(vault_id)
+        self.assertEqual(bad_blocks, num_blocks)
+        self.assertEqual(bad_files, 0)
+
+    def test_vault_health_bad_files(self):
+        driver = self.create_driver()
+
+        vault_id = self.create_vault_id()
+        file_id = self.create_file_id()
+        num_blocks = 10
+        new_block_ids = [self.create_block_id() for _ in range(num_blocks)]
+        size = 1024
+        for block_id in new_block_ids:
+            gen_storage_id = self._genstorageid(block_id)
+            driver.register_block(vault_id, block_id, gen_storage_id, size)
+
+        driver.create_file(vault_id, file_id)
+        offsets = []
+
+        for i in range(num_blocks):
+            offsets.append(i * 1024)
+
+        driver.assign_blocks(vault_id, file_id, new_block_ids, offsets)
+
+        driver.finalize_file(vault_id, file_id, 1024 * num_blocks)
+
+        for block_id in new_block_ids:
+            driver.mark_block_as_bad(vault_id, block_id)
+
+        bad_blocks, bad_files = driver.vault_health(vault_id)
+
+        self.assertEqual(bad_files, 1)
+        self.assertEqual(bad_blocks, num_blocks)
 
     def test_blockid_to_storageid(self):
 

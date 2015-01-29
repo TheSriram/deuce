@@ -6,6 +6,7 @@ from deuce.transport.wsgi.v1_0 import health
 from deuce.transport.wsgi.v1_0 import home
 from deuce.transport.wsgi.v1_0 import ping
 from deuce.transport.wsgi.v1_0 import vault
+from deuce.transport.wsgi.v1_0 import vaulthealth
 
 
 def public_endpoints():
@@ -20,12 +21,17 @@ def public_endpoints():
 
         ('/ping',
         ping.CollectionResource()),
+
         # Vault Endpoints
         ('/vaults/{vault_id}',
          vault.ItemResource()),
 
         ('/vaults',
          vault.CollectionResource()),
+
+        # Vault Health Endpoints
+        ('/vaults/{vault_id}/health',
+         vaulthealth.CollectionResource()),
 
         # Block Endpoints
         ('/vaults/{vault_id}/blocks',

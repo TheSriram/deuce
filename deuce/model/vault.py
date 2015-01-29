@@ -121,6 +121,9 @@ class Vault(object):
 
         return (Block(self.id, bid) for bid in gen)
 
+    def get_vault_health(self):
+        return deuce.metadata_driver.vault_health(self.id)
+
     def has_block(self, block_id, check_storage=False):
         if self._meta_has_block(block_id):
             if check_storage:
